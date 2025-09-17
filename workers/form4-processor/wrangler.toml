@@ -1,0 +1,16 @@
+name = "form4-processor"
+main = "index.js"
+compatibility_date = "2023-12-01"
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "sec_filings"
+database_id = "becbe21b-9435-4df7-80da-3df9ed7f1b96"
+
+[observability.logs]
+enabled = true
+
+# Queue consumer for processing tasks
+[[queues.consumers]]
+queue = "filing-processing-queue"

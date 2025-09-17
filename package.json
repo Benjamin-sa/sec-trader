@@ -1,0 +1,41 @@
+{
+  "name": "sec-filing-analyzer",
+  "version": "1.0.0",
+  "description": "Cloudflare Workers project for analyzing SEC Form 4 insider trading filings",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev --config workers/main/wrangler.toml",
+    "dev:rss": "wrangler dev --config workers/rss-monitor/wrangler.toml",
+    "dev:processor": "wrangler dev --config workers/form4-processor/wrangler.toml",
+    "test:cron": "curl http://localhost:8787/test-cron",
+    "test:processor": "curl http://localhost:8787/test",
+    "deploy:rss": "cd workers/rss-monitor && wrangler deploy",
+    "deploy:processor": "cd workers/form4-processor && wrangler deploy",
+    "deploy:main": "cd workers/main && wrangler deploy",
+    "deploy": "npm run deploy:rss && npm run deploy:processor && npm run deploy:main",
+    "db:init": "wrangler d1 create sec_filings",
+    "db:local": "wrangler d1 execute sec_filings --local --file=./schema.sql",
+    "db:migrate": "wrangler d1 execute sec_filings --remote --file=./schema.sql",
+    "tail:rss": "wrangler tail rss-monitor",
+    "tail:processor": "wrangler tail form4-processor"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12",
+    "fast-xml-parser": "^5.2.5",
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20231025.0",
+    "wrangler": "^4.37.0"
+  },
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "sec",
+    "form4",
+    "insider-trading",
+    "rss"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

@@ -1,0 +1,6 @@
+name = "sec-trader-frontend"
+compatibility_date = "2023-12-01"
+pages_build_output_dir = "out"
+
+[vars]
+NEXT_PUBLIC_API_URL = "https://api-server.benjamin-sautersb.workers.dev"
