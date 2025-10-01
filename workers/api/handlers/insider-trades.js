@@ -12,10 +12,7 @@ import {
   createSuccessResponse,
   createErrorResponse,
 } from "../utils/responses.js";
-import {
-  DEFAULT_LIMITS,
-  RATING_REFRESH_THRESHOLD_HOURS,
-} from "../config/constants.js";
+import { DEFAULT_LIMITS } from "../config/constants.js";
 
 export async function handleTradesByInsider(request, env) {
   const url = new URL(request.url);
@@ -42,11 +39,6 @@ export async function handleTradesByInsider(request, env) {
 
   console.log("Fetching trades for insider:", { cik, name });
   console.log("Original CIK param:", cikParam);
-
-  // Orchestrate background updates if CIK is provided
-  if (cik) {
-    await orchestrateBackgroundUpdates(cik, env);
-  }
 
   // Build insider-specific conditions
   let insiderConditions = [];
@@ -98,16 +90,6 @@ export async function handleTradesByInsider(request, env) {
     limit
   );
 
-  // Get insider rating if CIK is available
-  let insiderRating = null;
-  if (cik) {
-    try {
-      insiderRating = await getInsiderRating(cik, env.DB);
-    } catch (error) {
-      console.error("Error fetching insider rating:", error);
-    }
-  }
-
   return createSuccessResponse(results, env, {
     query_info: {
       insider_filter: { cik, name },
@@ -115,88 +97,5 @@ export async function handleTradesByInsider(request, env) {
       total_results: results.length,
       limit_applied: limit,
     },
-    insider_rating: insiderRating,
   });
-}
-
-/**
- * Orchestrate background updates for insider data
- */
-async function orchestrateBackgroundUpdates(cik, env) {
-  try {
-    // Check if history needs to be imported
-    const person = await getPersonByCik(cik, env.DB);
-    if (person && !person.history_imported) {
-      console.log(`Triggering history import for CIK: ${cik}`);
-      // Fire-and-forget history import
-      await env.HISTORY_QUEUE.send({
-        cik: cik,
-        source: "auto-trigger",
-        requestedAt: new Date().toISOString(),
-      });
-    }
-
-    // Check if rating needs to be refreshed
-    if (person) {
-      const rating = await getInsiderRating(cik, env.DB);
-      if (shouldRefreshRating(rating)) {
-        console.log(`Triggering rating refresh for CIK: ${cik}`);
-        // Fire-and-forget rating calculation
-        await env.RATING_QUEUE.send({
-          cik: cik,
-          source: "auto-trigger",
-          requestedAt: new Date().toISOString(),
-        });
-      }
-    }
-  } catch (error) {
-    // Don't fail the main request if background orchestration fails
-    console.error("Error in background orchestration:", error);
-  }
-}
-
-/**
- * Get person by CIK
- */
-async function getPersonByCik(cik, db) {
-  try {
-    const stmt = db.prepare("SELECT * FROM persons WHERE cik = ?");
-    return await stmt.bind(cik).first();
-  } catch (error) {
-    console.error("Database error:", error);
-    return null;
-  }
-}
-
-/**
- * Get insider rating by CIK
- */
-async function getInsiderRating(cik, db) {
-  try {
-    const stmt = db.prepare(`
-      SELECT ir.*, p.name as person_name
-      FROM insider_ratings ir
-      JOIN persons p ON ir.person_id = p.id
-      WHERE p.cik = ?
-    `);
-    return await stmt.bind(cik).first();
-  } catch (error) {
-    console.error("Database error:", error);
-    return null;
-  }
-}
-
-/**
- * Determine if rating should be refreshed
- */
-function shouldRefreshRating(rating) {
-  if (!rating || !rating.last_calculated) {
-    return true; // No rating exists, needs calculation
-  }
-
-  const lastCalculated = new Date(rating.last_calculated);
-  const now = new Date();
-  const hoursSinceUpdate = (now - lastCalculated) / (1000 * 60 * 60);
-
-  return hoursSinceUpdate > RATING_REFRESH_THRESHOLD_HOURS;
 }

@@ -19,11 +19,3 @@ binding = "DB"
 database_name = "sec_filings"
 database_id = "becbe21b-9435-4df7-80da-3df9ed7f1b96"
 
-# Queue producers for orchestrating background jobs
-[[queues.producers]]
-queue = "history-request-queue"
-binding = "HISTORY_QUEUE"
-
-[[queues.producers]]
-queue = "rating-request-queue"
-binding = "RATING_QUEUE"

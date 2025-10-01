@@ -1,11 +1,11 @@
 import CompanyPageClient from './CompanyPageClient';
-import { gqlDb } from '@/lib/graphql-client';
+import { apiClient } from '@/lib/api-client';
 
-// Pre-render a set of popular company pages by fetching real CIKs from the GraphQL API
+// Pre-render a set of popular company pages by fetching real CIKs from the REST API
 export async function generateStaticParams() {
   try {
-    // Fetch latest trades from GraphQL API
-    const trades = await gqlDb.getLatestTrades(200);
+    // Fetch latest trades from REST API
+    const trades = await apiClient.getLatestTrades(200);
 
     const unique = new Set<string>();
     for (const trade of trades) {
@@ -18,7 +18,7 @@ export async function generateStaticParams() {
     return Array.from(unique).map((cik) => ({ cik }));
   } catch (err) {
     console.error('generateStaticParams(company) failed, falling back to empty list:', err);
-    // If GraphQL API is unreachable at build time, return an empty list to avoid build failure.
+    // If REST API is unreachable at build time, return an empty list to avoid build failure.
     // Pages will still work via client-side fetching when navigated from within the app.
     return [];
   }

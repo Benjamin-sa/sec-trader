@@ -1,0 +1,26 @@
+name = "alpaca-market"
+main = "index.js"
+compatibility_date = "2023-12-01"
+
+# Environment variables for Alpaca API
+# Note: Sensitive values (API keys/secrets) are stored as Cloudflare secrets
+# Use: wrangler secret put ALPACA_API_KEY
+#      wrangler secret put ALPACA_API_SECRET
+
+[env.production.vars]
+ALPACA_BASE_URL = "https://data.alpaca.markets"
+CORS_ORIGINS = "https://your-frontend-domain.com"
+
+[env.development.vars]
+ALPACA_BASE_URL = "https://data.alpaca.markets"
+CORS_ORIGINS = "http://localhost:3000"
+
+# Observability
+[observability.logs]
+enabled = true
+
+# D1 Database binding (optional - for caching market data)
+[[d1_databases]]
+binding = "DB"
+database_name = "sec_filings"
+database_id = "becbe21b-9435-4df7-80da-3df9ed7f1b96"

@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Database, TradeData } from '@/lib/database';
-import { ArrowLeftIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline';
+import { alpacaClient, MarketBarsResponse } from '@/lib/api-client';
+import { ArrowLeftIcon, BuildingOfficeIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import MarketChart from '@/app/components/MarketChartInteractive';
 
 export default function CompanyPageClient() {
   const params = useParams();
@@ -11,8 +13,15 @@ export default function CompanyPageClient() {
   const cik = params.cik as string;
   const [trades, setTrades] = useState<TradeData[]>([]);
   const [companyName, setCompanyName] = useState<string>('');
+  const [tradingSymbol, setTradingSymbol] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [marketData, setMarketData] = useState<MarketBarsResponse | null>(null);
+  const [marketLoading, setMarketLoading] = useState(false);
+  const [marketError, setMarketError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'trades' | 'market'>('trades');
+  const [selectedTimeRange, setSelectedTimeRange] = useState<number>(3); // Default 3 months
+  const [selectedTimeframe, setSelectedTimeframe] = useState<string>('1Day'); // Default daily bars
 
   useEffect(() => {
     const fetchCompanyTrades = async () => {
@@ -24,9 +33,10 @@ export default function CompanyPageClient() {
         const result = await db.getTradesByCompany(undefined, cik, undefined, 100);
         setTrades(result);
         
-        // Set company name from first trade
+        // Set company name and symbol from first trade
         if (result.length > 0) {
           setCompanyName(result[0].issuer_name);
+          setTradingSymbol(result[0].trading_symbol);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch company trades');
@@ -37,6 +47,34 @@ export default function CompanyPageClient() {
 
     fetchCompanyTrades();
   }, [cik]);
+
+  useEffect(() => {
+    const fetchMarketData = async () => {
+      if (!tradingSymbol || activeTab !== 'market') return;
+      
+      try {
+        setMarketLoading(true);
+        setMarketError(null);
+        const data = await alpacaClient.getMarketBars(tradingSymbol, selectedTimeframe, selectedTimeRange, true);
+        setMarketData(data);
+      } catch (err) {
+        console.error('Error fetching market data:', err);
+        setMarketError(err instanceof Error ? err.message : 'Failed to fetch market data');
+      } finally {
+        setMarketLoading(false);
+      }
+    };
+
+    fetchMarketData();
+  }, [tradingSymbol, activeTab, selectedTimeRange, selectedTimeframe]);
+
+  const handleTimeRangeChange = (months: number) => {
+    setSelectedTimeRange(months);
+  };
+
+  const handleTimeframeChange = (timeframe: string) => {
+    setSelectedTimeframe(timeframe);
+  };
 
   const formatCurrency = (value: number | null) => {
     if (value === null) return 'N/A';
@@ -120,12 +158,45 @@ export default function CompanyPageClient() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">
-              Recent Insider Trades ({trades.length})
-            </h2>
+        {/* Tabs */}
+        <div className="mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('trades')}
+                className={`${
+                  activeTab === 'trades'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+              >
+                <BuildingOfficeIcon className="h-5 w-5 mr-2" />
+                Insider Trades ({trades.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('market')}
+                className={`${
+                  activeTab === 'market'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+                disabled={!tradingSymbol}
+              >
+                <ChartBarIcon className="h-5 w-5 mr-2" />
+                Market Data {tradingSymbol && `(${tradingSymbol})`}
+              </button>
+            </nav>
           </div>
+        </div>
+
+        {/* Insider Trades Tab */}
+        {activeTab === 'trades' && (
+          <div className="bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Recent Insider Trades ({trades.length})
+              </h2>
+            </div>
 
           {trades.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
@@ -218,7 +289,57 @@ export default function CompanyPageClient() {
               </table>
             </div>
           )}
-        </div>
+          </div>
+        )}
+
+        {/* Market Data Tab */}
+        {activeTab === 'market' && (
+          <div>
+            {!tradingSymbol ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <ChartBarIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  No Trading Symbol Available
+                </h3>
+                <p className="text-gray-600">
+                  This company doesn't have a trading symbol associated with it.
+                </p>
+              </div>
+            ) : marketError ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <div className="text-red-600 text-xl mb-4">Error Loading Market Data</div>
+                <p className="text-gray-600 mb-4">{marketError}</p>
+                <p className="text-sm text-gray-500">
+                  Note: Market data may not be available for all symbols or may require a valid Alpaca API key.
+                </p>
+              </div>
+            ) : marketLoading ? (
+              <div className="bg-white rounded-lg shadow p-8">
+                <div className="animate-pulse space-y-4">
+                  <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="h-24 bg-gray-200 rounded"></div>
+                    <div className="h-24 bg-gray-200 rounded"></div>
+                    <div className="h-24 bg-gray-200 rounded"></div>
+                    <div className="h-24 bg-gray-200 rounded"></div>
+                  </div>
+                  <div className="h-64 bg-gray-200 rounded"></div>
+                </div>
+              </div>
+            ) : marketData ? (
+              <MarketChart
+                symbol={tradingSymbol}
+                bars={marketData.bars}
+                analysis={marketData.analysis}
+                significantMoves={marketData.significantMoves}
+                onTimeRangeChange={handleTimeRangeChange}
+                currentTimeRange={selectedTimeRange}
+                onTimeframeChange={handleTimeframeChange}
+                currentTimeframe={selectedTimeframe}
+              />
+            ) : null}
+          </div>
+        )}
       </div>
     </div>
   );

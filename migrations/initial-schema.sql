@@ -25,7 +25,6 @@ DROP TABLE IF EXISTS persons;
 DROP TABLE IF EXISTS issuers;
 DROP TABLE IF EXISTS transaction_codes;
 DROP TABLE IF EXISTS filing_types;
-DROP TABLE IF EXISTS insider_ratings;
 
 -- Self-documenting lookup table for filing types
 CREATE TABLE filing_types (
@@ -102,7 +101,6 @@ CREATE TABLE persons (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   cik TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
-  history_imported BOOLEAN DEFAULT FALSE,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -198,26 +196,6 @@ CREATE TABLE signatures (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insider Ratings (Alpha Score analytics)
-CREATE TABLE insider_ratings (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  person_id INTEGER NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
-  rating_score REAL,                    -- Overall combined rating score
-  alpha_1m REAL,                        -- 1-month alpha vs SPY
-  trades_for_1m INTEGER DEFAULT 0,      -- Number of trades used for 1m calculation
-  alpha_3m REAL,                        -- 3-month alpha vs SPY
-  trades_for_3m INTEGER DEFAULT 0,      -- Number of trades used for 3m calculation
-  alpha_6m REAL,                        -- 6-month alpha vs SPY
-  trades_for_6m INTEGER DEFAULT 0,      -- Number of trades used for 6m calculation
-  alpha_1y REAL,                        -- 1-year alpha vs SPY
-  trades_for_1y INTEGER DEFAULT 0,      -- Number of trades used for 1y calculation
-  win_rate_3m REAL,                     -- 3-month win rate percentage
-  last_calculated DATETIME,             -- When this rating was last updated
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(person_id)                     -- One rating record per person
-);
-
 -- -----------------------------------------------------------------------------
 -- PERFORMANCE & ANALYTICS
 -- -----------------------------------------------------------------------------
@@ -234,10 +212,6 @@ CREATE INDEX idx_persons_cik ON persons(cik);
 
 CREATE INDEX idx_insider_trans_filing_id ON insider_transactions(filing_id);
 CREATE INDEX idx_insider_trans_date ON insider_transactions(transaction_date);
-
-CREATE INDEX idx_insider_ratings_person_id ON insider_ratings(person_id);
-CREATE INDEX idx_insider_ratings_score ON insider_ratings(rating_score);
-CREATE INDEX idx_insider_ratings_last_calculated ON insider_ratings(last_calculated);
 
 -- A powerful VIEW to simplify querying insider trades for your application
 CREATE VIEW vw_insider_trades_detailed AS
