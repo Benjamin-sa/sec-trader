@@ -21,6 +21,7 @@ import { handleFirstBuySignals } from "./handlers/first-buys.js";
 import { handleClusterBuys } from "./handlers/cluster-buys.js";
 import { handleTradesByCompany } from "./handlers/company-trades.js";
 import { handleTradesByInsider } from "./handlers/insider-trades.js";
+import { handleInsiderBackfill } from "./handlers/insider-backfill.js";
 
 /**
  * Main worker entry point
@@ -55,6 +56,7 @@ async function routeRequest(pathname, request, env) {
     [API_ROUTES.TRADES_CLUSTERS]: handleClusterBuys,
     [API_ROUTES.TRADES_BY_COMPANY]: handleTradesByCompany,
     [API_ROUTES.TRADES_BY_INSIDER]: handleTradesByInsider,
+    [API_ROUTES.INSIDER_BACKFILL]: handleInsiderBackfill,
   };
 
   const handler = routeMap[pathname];

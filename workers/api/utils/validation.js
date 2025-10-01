@@ -44,3 +44,23 @@ export function validateLimit(limit, defaultLimit, maxLimit = 100) {
 export function sanitizeString(str) {
   return str ? str.trim() : "";
 }
+
+export function validateCik(cik) {
+  // CIK should be a string of 1-10 digits, optionally followed by .0
+  return cik && /^\d{1,10}(\.0)?$/.test(cik);
+}
+
+export function standardizeCik(cik) {
+  if (!cik) return null;
+
+  // Convert to string and trim
+  let standardized = cik.toString().trim();
+
+  // Add .0 suffix if not already present
+  if (!standardized.endsWith(".0")) {
+    standardized = standardized + ".0";
+  }
+
+  // Validate the standardized CIK
+  return validateCik(standardized) ? standardized : null;
+}

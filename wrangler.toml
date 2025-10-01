@@ -1,9 +1,0 @@
-name = "sec-analyzer"
-main = "src/index.js"
-compatibility_date = "2023-12-01"
-
-# D1 Database
-[[d1_databases]]
-binding = "DB"
-database_name = "sec_filings"
-database_id = "becbe21b-9435-4df7-80da-3df9ed7f1b96"

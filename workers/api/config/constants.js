@@ -9,6 +9,7 @@ export const API_ROUTES = {
   TRADES_CLUSTERS: "/api/trades/clusters",
   TRADES_BY_COMPANY: "/api/trades/company",
   TRADES_BY_INSIDER: "/api/trades/insider",
+  INSIDER_BACKFILL: "/api/insider/backfill",
   HEALTH: "/api/health",
 };
 
@@ -51,3 +52,5 @@ export const VALUE_THRESHOLDS = {
   LOW: 250000,
   MINIMUM: 100000,
 };
+
+export const RATING_REFRESH_THRESHOLD_HOURS = 24;

@@ -14,10 +14,10 @@
     "deploy:main": "cd workers/main && wrangler deploy",
     "deploy": "npm run deploy:rss && npm run deploy:processor && npm run deploy:main",
     "db:init": "wrangler d1 create sec_filings",
-    "db:local": "wrangler d1 execute sec_filings --local --file=./schema.sql",
-    "db:migrate": "wrangler d1 execute sec_filings --remote --file=./schema.sql",
-    "tail:rss": "wrangler tail rss-monitor",
-    "tail:processor": "wrangler tail form4-processor"
+    "db:local": "wrangler d1 execute sec_filings --local --file=./db/safe-migrate.sql",
+    "db:migrate": "wrangler d1 execute sec_filings --remote --file=./db/safe-migrate.sql",
+    "db:fresh": "wrangler d1 execute sec_filings --remote --file=./db/schema.sql",
+    "db:backup": "wrangler d1 export sec_filings --output ./backups/backup_$(date +%Y%m%d_%H%M%S).sql --remote"
   },
   "dependencies": {
     "cheerio": "^1.0.0-rc.12",
