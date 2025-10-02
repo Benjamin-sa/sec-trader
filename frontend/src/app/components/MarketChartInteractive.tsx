@@ -131,7 +131,7 @@ export default function MarketChart({
   };
 
   // Custom tooltip
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ payload: { date: string; open: number; high: number; low: number; close: number; volume: number; sma20?: number; sma50?: number } }> }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (

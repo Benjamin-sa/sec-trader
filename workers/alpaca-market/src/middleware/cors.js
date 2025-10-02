@@ -4,9 +4,6 @@
 
 /**
  * Handle CORS preflight requests
- *
- * @param {object} env - Environment variables
- * @returns {Response} CORS preflight response
  */
 export function handlePreflight(env) {
   const corsOrigins = env.CORS_ORIGINS || "*";
@@ -24,10 +21,6 @@ export function handlePreflight(env) {
 
 /**
  * Add CORS headers to response
- *
- * @param {Response} response - Original response
- * @param {object} env - Environment variables
- * @returns {Response} Response with CORS headers
  */
 export function addCorsHeaders(response, env) {
   const corsOrigins = env.CORS_ORIGINS || "*";

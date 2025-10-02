@@ -2,16 +2,24 @@
 
 import { useEffect, useState } from 'react';
 import { ClusterBuy, db } from '../../lib/database';
-import { Calendar, Building2, Users, DollarSign, TrendingUp, AlertCircle } from 'lucide-react';
+import { Calendar, Users, DollarSign, TrendingUp, AlertCircle } from 'lucide-react';
+import { ClickableCompany, ClickableInsider } from './ClickableLinks';
+import FilingLink from './FilingLink';
+import { TradesModal } from './TradesModal';
 
 export function ClusterBuys() {
   const [clusters, setClusters] = useState<ClusterBuy[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [daysWindow, setDaysWindow] = useState(7);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalCompanyFilter, setModalCompanyFilter] = useState<{ symbol?: string; cik?: string; name?: string } | undefined>();
+  const [modalInsiderFilter, setModalInsiderFilter] = useState<{ cik?: string; name?: string } | undefined>();
 
   useEffect(() => {
     fetchClusterBuys();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [daysWindow]);
 
   const fetchClusterBuys = async () => {
@@ -20,7 +28,7 @@ export function ClusterBuys() {
       const data = await db.getClusterBuys(daysWindow);
       setClusters(data);
       setError(null);
-    } catch (err) {
+    } catch {
       setError('Failed to fetch cluster buys');
     } finally {
       setLoading(false);
@@ -48,9 +56,21 @@ export function ClusterBuys() {
     });
   };
 
+  const handleCompanyClick = (symbol?: string, cik?: string, name?: string) => {
+    setModalTitle(`All Trades: ${name}`);
+    setModalCompanyFilter({ symbol, cik, name });
+    setModalInsiderFilter(undefined);
+    setModalOpen(true);
+  };
+
+  const handleInsiderClick = (cik?: string, name?: string) => {
+    setModalTitle(`All Trades: ${name}`);
+    setModalInsiderFilter({ cik, name });
+    setModalCompanyFilter(undefined);
+    setModalOpen(true);
+  };
+
   const getClusterSignificance = (cluster: ClusterBuy): { level: string; color: string; description: string } => {
-    const avgValuePerInsider = cluster.total_value / cluster.total_insiders;
-    
     if (cluster.total_value > 50000000 || cluster.total_insiders >= 5) {
       return {
         level: 'Critical',
@@ -184,15 +204,13 @@ export function ClusterBuys() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 mb-1">
-                      <Building2 className="h-6 w-6 text-gray-600" />
-                      <h3 className="text-xl font-bold text-gray-900">
-                        {cluster.issuer_name}
-                        {cluster.trading_symbol && (
-                          <span className="ml-2 text-lg font-normal text-gray-600">
-                            ({cluster.trading_symbol})
-                          </span>
-                        )}
-                      </h3>
+                      <ClickableCompany
+                        name={cluster.issuer_name}
+                        symbol={cluster.trading_symbol}
+                        cik={cluster.trades[0]?.issuer_cik}
+                        className="text-xl font-bold"
+                        onClick={handleCompanyClick}
+                      />
                     </div>
                     <p className="text-sm text-gray-600 mb-2">{significance.description}</p>
                     <div className="flex items-center gap-1 text-sm text-gray-500">
@@ -252,16 +270,23 @@ export function ClusterBuys() {
                     {cluster.trades.map((trade, tradeIndex) => (
                       <div key={`${trade.accession_number}-${tradeIndex}`} 
                            className="flex justify-between items-center p-3 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
                             <span className="text-xs font-bold text-blue-600">
                               {trade.person_name.split(' ').map(n => n[0]).join('')}
                             </span>
                           </div>
-                          <div>
-                            <div className="font-medium text-gray-900">{trade.person_name}</div>
-                            <div className="text-xs text-gray-500">
-                              {trade.officer_title || 'Insider'}
+                          <div className="min-w-0 flex-1">
+                            <ClickableInsider
+                              name={trade.person_name}
+                              cik={trade.person_cik}
+                              title={trade.officer_title}
+                              onClick={handleInsiderClick}
+                              className="text-sm"
+                            />
+                            <div className="text-xs text-gray-500 flex items-center gap-1">
+                              <span>Filed: </span>
+                              <FilingLink accessionNumber={trade.accession_number} filedAt={trade.filed_at} />
                               {trade.is_director && <span className="ml-1 text-purple-600">• Director</span>}
                               {trade.is_officer && <span className="ml-1 text-blue-600">• Officer</span>}
                             </div>
@@ -284,6 +309,14 @@ export function ClusterBuys() {
           })}
         </div>
       )}
+
+      <TradesModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={modalTitle}
+        companyFilter={modalCompanyFilter}
+        insiderFilter={modalInsiderFilter}
+      />
     </div>
   );
 }

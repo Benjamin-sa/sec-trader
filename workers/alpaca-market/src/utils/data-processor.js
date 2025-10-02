@@ -4,9 +4,6 @@
 
 /**
  * Calculate technical indicators from OHLCV bars
- *
- * @param {Array} bars - Array of bar objects with OHLCV data
- * @returns {object} Processed data with technical indicators
  */
 export function calculateTechnicalIndicators(bars) {
   if (!bars || bars.length === 0) {
@@ -55,10 +52,6 @@ export function calculateTechnicalIndicators(bars) {
 
 /**
  * Calculate Simple Moving Average
- *
- * @param {Array<number>} data - Array of numbers
- * @param {number} period - Number of periods for the moving average
- * @returns {number|null} SMA value or null if not enough data
  */
 function calculateSMA(data, period) {
   if (data.length < period) {
@@ -72,9 +65,6 @@ function calculateSMA(data, period) {
 
 /**
  * Format bar data for easier consumption
- *
- * @param {Array} bars - Raw bars from Alpaca API
- * @returns {Array} Formatted bars
  */
 export function formatBars(bars) {
   return bars.map((bar) => ({
@@ -91,9 +81,6 @@ export function formatBars(bars) {
 
 /**
  * Group bars by date for daily aggregation
- *
- * @param {Array} bars - Array of bar objects
- * @returns {object} Bars grouped by date
  */
 export function groupBarsByDate(bars) {
   const grouped = {};
@@ -111,9 +98,6 @@ export function groupBarsByDate(bars) {
 
 /**
  * Calculate daily aggregates from intraday bars
- *
- * @param {Array} bars - Array of bar objects for a single day
- * @returns {object} Daily aggregate data
  */
 export function calculateDailyAggregate(bars) {
   if (!bars || bars.length === 0) {
@@ -138,10 +122,6 @@ export function calculateDailyAggregate(bars) {
 
 /**
  * Detect significant price movements
- *
- * @param {Array} bars - Array of bar objects
- * @param {number} threshold - Percentage threshold for significance (e.g., 5 for 5%)
- * @returns {Array} Array of significant movements
  */
 export function detectSignificantMoves(bars, threshold = 5) {
   const movements = [];
@@ -163,4 +143,23 @@ export function detectSignificantMoves(bars, threshold = 5) {
   }
 
   return movements;
+}
+
+/**
+ * Format news data for easier consumption
+ */
+export function formatNews(newsItems) {
+  return newsItems.map((item) => ({
+    id: item.id,
+    headline: item.headline,
+    summary: item.summary || null,
+    author: item.author || null,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+    url: item.url,
+    content: item.content || null,
+    symbols: item.symbols || [],
+    source: item.source || null,
+    images: item.images || [],
+  }));
 }

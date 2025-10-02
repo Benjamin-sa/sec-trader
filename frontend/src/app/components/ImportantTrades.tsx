@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { TradeData, db } from '../../lib/database';
-import { Calendar, Building2, User, DollarSign, AlertTriangle, Crown } from 'lucide-react';
+import { Calendar, AlertTriangle, Crown } from 'lucide-react';
 import { ClickableCompany, ClickableInsider } from './ClickableLinks';
+import FilingLink from './FilingLink';
 
 export function ImportantTrades() {
+  
   // Importance definition (finance-savvy):
   // - Prefer open‑market purchases (A/P). Exclude most awards/grants.
   // - Rank by transaction value, role (CEO/CFO > other officers > directors), and 10% owner.
@@ -27,7 +29,7 @@ export function ImportantTrades() {
       const data = await db.getImportantTrades();
       setTrades(data);
       setError(null);
-    } catch (err) {
+    } catch {
       setError('Failed to fetch important trades');
     } finally {
       setLoading(false);
@@ -210,22 +212,20 @@ export function ImportantTrades() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 mb-1 min-w-0">
-                      <Building2 className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
-                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-                        {trade.issuer_name}
-                        {trade.trading_symbol && (
-                          <span className="ml-1 sm:ml-2 text-sm sm:text-base font-normal text-gray-600">
-                            ({trade.trading_symbol})
-                          </span>
-                        )}
-                      </h3>
+                      <ClickableCompany
+                        name={trade.issuer_name}
+                        symbol={trade.trading_symbol}
+                        cik={trade.issuer_cik}
+                        className="text-base sm:text-lg font-semibold"
+                      />
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
-                      <User className="h-4 w-4 text-gray-400 shrink-0" />
-                      <span className="text-sm sm:text-base font-medium text-gray-700">{trade.person_name}</span>
-                      {trade.officer_title && (
-                        <span className="text-xs sm:text-sm text-gray-600">• {trade.officer_title}</span>
-                      )}
+                      <ClickableInsider
+                        name={trade.person_name}
+                        cik={trade.person_cik}
+                        title={trade.officer_title}
+                        className="text-sm sm:text-base"
+                      />
                       {(trade.is_director || trade.is_officer || trade.is_ten_percent_owner) && (
                         <Crown className="h-4 w-4 text-purple-500" />
                       )}
@@ -233,7 +233,7 @@ export function ImportantTrades() {
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-gray-500">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        Filed: {formatDate(trade.filed_at)}
+                        Filed: <FilingLink accessionNumber={trade.accession_number} filedAt={trade.filed_at} />
                       </div>
                       <div>Transaction: {formatDate(trade.transaction_date)}</div>
                     </div>

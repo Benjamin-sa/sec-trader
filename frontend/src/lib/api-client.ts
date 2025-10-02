@@ -109,7 +109,7 @@ export interface MarketBarsResponse {
 
 export interface MarketSnapshot {
   symbol: string;
-  snapshot: any;
+  snapshot: Record<string, unknown>;
   timestamp: string;
 }
 
@@ -168,7 +168,7 @@ class RestApiClient {
   }
 
   async getClusterBuys(daysWindow: number = 7): Promise<ClusterBuy[]> {
-    const queryParams = this.buildQueryParams({ days: daysWindow } as any);
+    const queryParams = this.buildQueryParams({ days: daysWindow } as ApiFilters & { days?: number });
     return this.fetchApi<ClusterBuy[]>('/api/trades/clusters', queryParams);
   }
 
@@ -176,7 +176,7 @@ class RestApiClient {
     const queryParams = this.buildQueryParams({ 
       recent_days: recentDays, 
       lookback_days: lookbackDays 
-    } as any);
+    } as ApiFilters & { recent_days?: number; lookback_days?: number });
     return this.fetchApi<TradeData[]>('/api/trades/first-buys', queryParams);
   }
 
@@ -193,7 +193,7 @@ class RestApiClient {
       name,
       limit,
       ...filters,
-    } as any);
+    } as ApiFilters & { cik?: string; name?: string; limit?: number });
     return this.fetchApi<TradeData[]>('/api/trades/company', queryParams);
   }
 
@@ -208,7 +208,7 @@ class RestApiClient {
       name,
       limit,
       ...filters,
-    } as any);
+    } as ApiFilters & { cik?: string; name?: string; limit?: number });
     return this.fetchApi<TradeData[]>('/api/trades/insider', queryParams);
   }
 }
@@ -221,7 +221,7 @@ class AlpacaApiClient {
     this.baseUrl = baseUrl;
   }
 
-  private buildQueryParams(params?: Record<string, any>): string {
+  private buildQueryParams(params?: Record<string, string | number | boolean | undefined>): string {
     if (!params) return '';
     
     const queryParams = new URLSearchParams();
@@ -281,14 +281,62 @@ class AlpacaApiClient {
     return this.fetchApi<MarketSnapshot>(`/api/market/snapshot/${symbol}`);
   }
 
-  async getMultipleSnapshots(symbols: string[]): Promise<any> {
+  async getMultipleSnapshots(symbols: string[]): Promise<Record<string, MarketSnapshot>> {
     const queryParams = this.buildQueryParams({ symbols: symbols.join(',') });
-    return this.fetchApi(`/api/market/snapshots`, queryParams);
+    return this.fetchApi<Record<string, MarketSnapshot>>(`/api/market/snapshots`, queryParams);
   }
 
-  async getQuote(symbol: string): Promise<any> {
-    return this.fetchApi(`/api/market/quote/${symbol}`);
+  async getQuote(symbol: string): Promise<Record<string, unknown>> {
+    return this.fetchApi<Record<string, unknown>>(`/api/market/quote/${symbol}`);
   }
+
+  async getNews(
+    symbols?: string[],
+    limit: number = 50,
+    days: number = 7,
+    hours?: number
+  ): Promise<NewsResponse> {
+    const params: Record<string, string | number> = { limit };
+    if (symbols && symbols.length > 0) {
+      params.symbols = symbols.join(',');
+    }
+    if (hours) {
+      params.hours = hours;
+    } else {
+      params.days = days;
+    }
+    const queryParams = this.buildQueryParams(params);
+    return this.fetchApi<NewsResponse>(`/api/market/news`, queryParams);
+  }
+
+  async getNewsBySymbol(symbol: string, limit: number = 50, days: number = 7): Promise<NewsResponse> {
+    return this.getNews([symbol], limit, days);
+  }
+}
+
+export interface NewsArticle {
+  id: number;
+  headline: string;
+  summary: string | null;
+  author: string | null;
+  createdAt: string;
+  updatedAt: string;
+  url: string;
+  content: string | null;
+  symbols: string[];
+  source: string | null;
+  images: Array<{ size: string; url: string }>;
+}
+
+export interface NewsResponse {
+  symbols: string[] | null;
+  start: string;
+  end: string;
+  count: number;
+  sort: string;
+  news: NewsArticle[];
+  timestamp: string;
+  nextPageToken?: string;
 }
 
 // Export singleton instances

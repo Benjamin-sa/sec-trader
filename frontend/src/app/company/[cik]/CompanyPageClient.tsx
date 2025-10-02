@@ -3,9 +3,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Database, TradeData } from '@/lib/database';
-import { alpacaClient, MarketBarsResponse } from '@/lib/api-client';
-import { ArrowLeftIcon, BuildingOfficeIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { alpacaClient, MarketBarsResponse, NewsArticle } from '@/lib/api-client';
+import { 
+  ArrowLeftIcon, 
+  BuildingOfficeIcon, 
+  ChartBarIcon, 
+  NewspaperIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
+  UsersIcon
+} from '@heroicons/react/24/outline';
 import MarketChart from '@/app/components/MarketChartInteractive';
+import CompanyNews from '@/app/components/CompanyNews';
+import FilingLink from '@/app/components/FilingLink';
 
 export default function CompanyPageClient() {
   const params = useParams();
@@ -19,7 +29,10 @@ export default function CompanyPageClient() {
   const [marketData, setMarketData] = useState<MarketBarsResponse | null>(null);
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketError, setMarketError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'trades' | 'market'>('trades');
+  const [news, setNews] = useState<NewsArticle[]>([]);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsError, setNewsError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'market' | 'news'>('overview');
   const [selectedTimeRange, setSelectedTimeRange] = useState<number>(3); // Default 3 months
   const [selectedTimeframe, setSelectedTimeframe] = useState<string>('1Day'); // Default daily bars
 
@@ -47,6 +60,27 @@ export default function CompanyPageClient() {
 
     fetchCompanyTrades();
   }, [cik]);
+
+  // Fetch news when symbol is available
+  useEffect(() => {
+    const fetchNews = async () => {
+      if (!tradingSymbol) return;
+      
+      try {
+        setNewsLoading(true);
+        setNewsError(null);
+        const response = await alpacaClient.getNewsBySymbol(tradingSymbol, 20, 30);
+        setNews(response.news);
+      } catch (err) {
+        console.error('Error fetching news:', err);
+        setNewsError(err instanceof Error ? err.message : 'Failed to fetch news');
+      } finally {
+        setNewsLoading(false);
+      }
+    };
+
+    fetchNews();
+  }, [tradingSymbol]);
 
   useEffect(() => {
     const fetchMarketData = async () => {
@@ -99,6 +133,36 @@ export default function CompanyPageClient() {
     });
   };
 
+  // Calculate insider activity statistics
+  const calculateInsiderStats = () => {
+    const recentTrades = trades.filter(trade => {
+      const tradeDate = new Date(trade.transaction_date);
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      return tradeDate >= thirtyDaysAgo;
+    });
+
+    const buys = trades.filter(t => t.acquired_disposed_code === 'A');
+    const sells = trades.filter(t => t.acquired_disposed_code === 'D');
+    
+    const totalBuyValue = buys.reduce((sum, t) => sum + (t.transaction_value || 0), 0);
+    const totalSellValue = sells.reduce((sum, t) => sum + (t.transaction_value || 0), 0);
+    
+    const uniqueInsiders = new Set(trades.map(t => t.person_cik)).size;
+    
+    return {
+      recentTradesCount: recentTrades.length,
+      totalBuys: buys.length,
+      totalSells: sells.length,
+      totalBuyValue,
+      totalSellValue,
+      netValue: totalBuyValue - totalSellValue,
+      uniqueInsiders,
+    };
+  };
+
+  const insiderStats = trades.length > 0 ? calculateInsiderStats() : null;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -129,6 +193,7 @@ export default function CompanyPageClient() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Header */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-6">
@@ -148,7 +213,15 @@ export default function CompanyPageClient() {
                     <h1 className="text-2xl font-bold text-gray-900">
                       {companyName || 'Company Profile'}
                     </h1>
-                    <p className="text-sm text-gray-500">CIK: {cik}</p>
+                    <div className="flex items-center gap-3 text-sm text-gray-500">
+                      <span>CIK: {cik}</span>
+                      {tradingSymbol && (
+                        <>
+                          <span>•</span>
+                          <span className="font-medium text-blue-600">{tradingSymbol}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -163,15 +236,27 @@ export default function CompanyPageClient() {
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8">
               <button
-                onClick={() => setActiveTab('trades')}
+                onClick={() => setActiveTab('overview')}
                 className={`${
-                  activeTab === 'trades'
+                  activeTab === 'overview'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
               >
                 <BuildingOfficeIcon className="h-5 w-5 mr-2" />
-                Insider Trades ({trades.length})
+                Overview
+              </button>
+              <button
+                onClick={() => setActiveTab('news')}
+                className={`${
+                  activeTab === 'news'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+                disabled={!tradingSymbol}
+              >
+                <NewspaperIcon className="h-5 w-5 mr-2" />
+                News {news.length > 0 && `(${news.length})`}
               </button>
               <button
                 onClick={() => setActiveTab('market')}
@@ -183,13 +268,199 @@ export default function CompanyPageClient() {
                 disabled={!tradingSymbol}
               >
                 <ChartBarIcon className="h-5 w-5 mr-2" />
-                Market Data {tradingSymbol && `(${tradingSymbol})`}
+                Market Data
+              </button>
+              <button
+                onClick={() => setActiveTab('trades')}
+                className={`${
+                  activeTab === 'trades'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+              >
+                <UsersIcon className="h-5 w-5 mr-2" />
+                All Trades ({trades.length})
               </button>
             </nav>
           </div>
         </div>
 
-        {/* Insider Trades Tab */}
+        {/* Overview Tab */}
+        {activeTab === 'overview' && insiderStats && (
+          <div className="space-y-6">
+            {/* Key Metrics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Recent Activity */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Recent Trades (30d)</p>
+                    <p className="text-3xl font-bold text-gray-900">{insiderStats.recentTradesCount}</p>
+                  </div>
+                  <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <ChartBarIcon className="h-6 w-6 text-blue-600" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Total Buys */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Total Buys</p>
+                    <p className="text-3xl font-bold text-green-600">{insiderStats.totalBuys}</p>
+                    <p className="text-xs text-gray-500 mt-1">{formatCurrency(insiderStats.totalBuyValue)}</p>
+                  </div>
+                  <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <ArrowTrendingUpIcon className="h-6 w-6 text-green-600" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Total Sells */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Total Sells</p>
+                    <p className="text-3xl font-bold text-red-600">{insiderStats.totalSells}</p>
+                    <p className="text-xs text-gray-500 mt-1">{formatCurrency(insiderStats.totalSellValue)}</p>
+                  </div>
+                  <div className="h-12 w-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <ArrowTrendingDownIcon className="h-6 w-6 text-red-600" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Net Sentiment */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Net Value</p>
+                    <p className={`text-3xl font-bold ${insiderStats.netValue >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {insiderStats.netValue >= 0 ? '+' : ''}{formatCurrency(insiderStats.netValue)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">{insiderStats.uniqueInsiders} Insiders</p>
+                  </div>
+                  <div className={`h-12 w-12 rounded-full flex items-center justify-center ${
+                    insiderStats.netValue >= 0 ? 'bg-green-100' : 'bg-red-100'
+                  }`}>
+                    <UsersIcon className={`h-6 w-6 ${insiderStats.netValue >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Trades Summary */}
+            <div className="bg-white rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-900">Recent Insider Activity</h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Insider
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Transaction
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Shares
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Value
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {trades.slice(0, 10).map((trade, index) => (
+                      <tr key={`${trade.accession_number}-${index}`} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {formatDate(trade.transaction_date)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-medium text-gray-900">{trade.person_name}</div>
+                          <div className="text-sm text-gray-500">{trade.officer_title}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            trade.acquired_disposed_code === 'A' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {trade.acquired_disposed_code === 'A' ? 'Buy' : 'Sell'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {formatShares(trade.shares_transacted)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {formatCurrency(trade.transaction_value)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+                <button
+                  onClick={() => setActiveTab('trades')}
+                  className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+                >
+                  View all {trades.length} trades →
+                </button>
+              </div>
+            </div>
+
+            {/* Latest News Preview (if available) */}
+            {tradingSymbol && news.length > 0 && (
+              <div className="bg-white rounded-lg shadow">
+                <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-gray-900">Latest News</h2>
+                  <button
+                    onClick={() => setActiveTab('news')}
+                    className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+                  >
+                    View all →
+                  </button>
+                </div>
+                <div className="divide-y divide-gray-200">
+                  {news.slice(0, 3).map((article) => (
+                    <div key={article.id} className="p-6 hover:bg-gray-50">
+                      <h3 className="text-base font-semibold text-gray-900 mb-2">
+                        <a href={article.url} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600">
+                          {article.headline}
+                        </a>
+                      </h3>
+                      {article.summary && (
+                        <p className="text-sm text-gray-600 line-clamp-2 mb-2">{article.summary}</p>
+                      )}
+                      <p className="text-xs text-gray-500">
+                        {new Date(article.createdAt).toLocaleDateString()} • {article.source}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* News Tab */}
+        {activeTab === 'news' && tradingSymbol && (
+          <CompanyNews 
+            news={news} 
+            loading={newsLoading} 
+            error={newsError} 
+            symbol={tradingSymbol}
+          />
+        )}
+
+        {/* All Trades Tab */}
         {activeTab === 'trades' && (
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
@@ -233,7 +504,7 @@ export default function CompanyPageClient() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div>
                           <div className="font-medium">{formatDate(trade.transaction_date)}</div>
-                          <div className="text-gray-500 text-xs">Filed: {formatDate(trade.filed_at)}</div>
+                          <div className="text-gray-500 text-xs">Filed: <FilingLink accessionNumber={trade.accession_number} filedAt={trade.filed_at} /></div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -302,7 +573,7 @@ export default function CompanyPageClient() {
                   No Trading Symbol Available
                 </h3>
                 <p className="text-gray-600">
-                  This company doesn't have a trading symbol associated with it.
+                  This company doesn&apos;t have a trading symbol associated with it.
                 </p>
               </div>
             ) : marketError ? (

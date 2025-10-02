@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Building2, User } from 'lucide-react';
 
 interface ClickableCompanyProps {
@@ -26,35 +26,61 @@ export function ClickableCompany({
   className = "",
   onClick,
 }: ClickableCompanyProps) {
-  const router = useRouter();
-
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onClick) {
+  // If onClick is provided, use button for modal behavior
+  if (onClick) {
+    const handleClick = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
       onClick(symbol ?? undefined, cik, name);
-      return;
-    }
-    if (cik) {
-      router.push(`/company/${cik}`);
-    }
-  };
+    };
+
+    return (
+      <button
+        onClick={handleClick}
+        className={`inline-flex items-center gap-1 text-left hover:text-blue-600 hover:underline transition-colors ${className}`}
+        title={`View all trades for ${name}${symbol ? ` (${symbol})` : ''}`}
+        type="button"
+      >
+        <Building2 className="h-4 w-4 text-gray-500 shrink-0" />
+        <span className="font-medium text-gray-900 truncate">{name}</span>
+        {symbol && (
+          <span className="text-sm font-normal text-gray-600 shrink-0">
+            ({symbol})
+          </span>
+        )}
+      </button>
+    );
+  }
+
+  // Otherwise, use proper Link for navigation
+  if (!cik) {
+    return (
+      <span className={`inline-flex items-center gap-1 text-gray-400 ${className}`}>
+        <Building2 className="h-4 w-4 shrink-0" />
+        <span className="font-medium truncate">{name}</span>
+        {symbol && (
+          <span className="text-sm font-normal shrink-0">
+            ({symbol})
+          </span>
+        )}
+      </span>
+    );
+  }
 
   return (
-    <button
-      onClick={handleClick}
-      className={`inline-flex items-center gap-1 text-left hover:text-blue-600 hover:underline transition-colors ${className}`}
+    <Link
+      href={`/company/${cik}`}
+      className={`inline-flex items-center gap-1 text-gray-900 hover:text-blue-600 hover:underline transition-colors ${className}`}
       title={`View all trades for ${name}${symbol ? ` (${symbol})` : ''}`}
-      disabled={!cik}
     >
       <Building2 className="h-4 w-4 text-gray-500 shrink-0" />
-      <span className="font-medium text-gray-900 truncate">{name}</span>
+      <span className="font-medium truncate">{name}</span>
       {symbol && (
         <span className="text-sm font-normal text-gray-600 shrink-0">
           ({symbol})
         </span>
       )}
-    </button>
+    </Link>
   );
 }
 
@@ -65,32 +91,54 @@ export function ClickableInsider({
   className = "",
   onClick,
 }: ClickableInsiderProps) {
-  const router = useRouter();
-
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onClick) {
+  // If onClick is provided, use button for modal behavior
+  if (onClick) {
+    const handleClick = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
       onClick(cik, name);
-      return;
-    }
-    if (cik) {
-      router.push(`/insider?cik=${encodeURIComponent(cik)}`);
-    }
-  };
+    };
+
+    return (
+      <button
+        onClick={handleClick}
+        className={`inline-flex items-center gap-1 text-left hover:text-blue-600 hover:underline transition-colors ${className}`}
+        title={`View all trades for ${name}${title ? ` (${title})` : ''}`}
+        type="button"
+      >
+        <User className="h-4 w-4 text-gray-500 shrink-0" />
+        <span className="font-medium text-gray-700">{name}</span>
+        {title && (
+          <span className="text-sm text-gray-600">• {title}</span>
+        )}
+      </button>
+    );
+  }
+
+  // Otherwise, use proper Link for navigation
+  if (!cik) {
+    return (
+      <span className={`inline-flex items-center gap-1 text-gray-400 ${className}`}>
+        <User className="h-4 w-4 shrink-0" />
+        <span className="font-medium">{name}</span>
+        {title && (
+          <span className="text-sm text-gray-600">• {title}</span>
+        )}
+      </span>
+    );
+  }
 
   return (
-    <button
-      onClick={handleClick}
-      className={`inline-flex items-center gap-1 text-left hover:text-blue-600 hover:underline transition-colors ${className}`}
+    <Link
+      href={`/insider?cik=${encodeURIComponent(cik)}`}
+      className={`inline-flex items-center gap-1 text-gray-700 hover:text-blue-600 hover:underline transition-colors ${className}`}
       title={`View all trades for ${name}${title ? ` (${title})` : ''}`}
-      disabled={!cik}
     >
       <User className="h-4 w-4 text-gray-500 shrink-0" />
-      <span className="font-medium text-gray-700">{name}</span>
+      <span className="font-medium">{name}</span>
       {title && (
         <span className="text-sm text-gray-600">• {title}</span>
       )}
-    </button>
+    </Link>
   );
 }

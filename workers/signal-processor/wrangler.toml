@@ -1,0 +1,18 @@
+name = "signal-processor"
+main = "index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Scheduled worker - runs every 30 minutes
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "sec_filings"
+database_id = "becbe21b-9435-4df7-80da-3df9ed7f1b96"
+
+# Environment variables
+[vars]
+ENVIRONMENT = "production"

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Database, TradeData } from '@/lib/database';
 import { ArrowLeftIcon, UserIcon } from '@heroicons/react/24/outline';
+import FilingLink from '@/app/components/FilingLink';
 
 export default function InsiderPageClient() {
   const params = useParams();
@@ -163,7 +164,7 @@ export default function InsiderPageClient() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         <div>
                           <div className="font-medium">{formatDate(trade.transaction_date)}</div>
-                          <div className="text-gray-500 text-xs">Filed: {formatDate(trade.filed_at)}</div>
+                          <div className="text-gray-500 text-xs">Filed: <FilingLink accessionNumber={trade.accession_number} filedAt={trade.filed_at} /></div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

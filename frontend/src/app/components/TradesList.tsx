@@ -1,11 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { TradeData, db } from '../../lib/database';
-import { Calendar, Building2, User, DollarSign, ArrowUpDown, Search } from 'lucide-react';
+import { useCurrencyFormatter, useNumberFormatter } from '@/hooks/useTranslation';
+import { Calendar, Search } from 'lucide-react';
 import { ClickableCompany, ClickableInsider } from './ClickableLinks';
+import FilingLink from './FilingLink';
 
 export function TradesList() {
+  const t = useTranslations();
+  const currencyFormatter = useCurrencyFormatter();
+  const numberFormatter = useNumberFormatter();
+  
   const [trades, setTrades] = useState<TradeData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,22 +73,18 @@ export function TradesList() {
   };
 
   const formatCurrency = (value: number | null) => {
-    if (!value) return 'N/A';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
+    if (!value) return t('common.noData');
+    return currencyFormatter.format(value);
   };
 
   const formatNumber = (value: number | null) => {
-    if (!value) return 'N/A';
-    return new Intl.NumberFormat('en-US').format(value);
+    if (!value) return t('common.noData');
+    return numberFormatter.format(value);
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    const locale = typeof window !== 'undefined' ? localStorage.getItem('preferred-locale') || 'en' : 'en';
+    return new Date(dateString).toLocaleDateString(locale, {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
@@ -130,13 +133,13 @@ export function TradesList() {
     return (
       <div className="p-6">
         <div className="text-center py-12">
-          <div className="text-red-600 mb-2">❌ Error</div>
+          <div className="text-red-600 mb-2">❌ {t('common.error')}</div>
           <p className="text-gray-600">{error}</p>
           <button 
             onClick={fetchTrades}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
-            Retry
+            {t('tradesPage.retry')}
           </button>
         </div>
       </div>
@@ -146,12 +149,12 @@ export function TradesList() {
   return (
     <div className="p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Latest SEC Form 4 Filings</h2>
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900">{t('tradesPage.title')}</h2>
         <button
           onClick={fetchTrades}
           className="self-start sm:self-auto px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md bg-white hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-blue-500"
         >
-          Refresh
+          {t('tradesPage.refresh')}
         </button>
       </div>
 
@@ -159,80 +162,80 @@ export function TradesList() {
       <div className="bg-white border border-gray-200 rounded-md p-3 sm:p-4 mb-4 sm:mb-6">
   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3 items-end">
           <div className="col-span-2 md:col-span-2">
-            <label className="block text-xs text-gray-700 mb-1">Search (Issuer, Symbol, Insider)</label>
+            <label className="block text-xs text-gray-700 mb-1">{t('tradesPage.searchLabel')}</label>
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Apple, AAPL, Tim Cook"
+                placeholder={t('tradesPage.searchPlaceholder')}
                 className="pl-8 pr-3 py-2 w-full border border-gray-300 rounded-md text-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
           </div>
           <div>
-            <label className="block text-xs text-gray-700 mb-1">Type</label>
+            <label className="block text-xs text-gray-700 mb-1">{t('tradesPage.typeLabel')}</label>
             <select value={type} onChange={(e) => setType(e.target.value as '' | 'P' | 'S' | 'A')} className="w-full border border-gray-300 rounded-md py-2 px-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-              <option value="">Any</option>
-              <option value="P">Purchase</option>
-              <option value="S">Sale</option>
-              <option value="A">Grant/Award</option>
+              <option value="">{t('tradesPage.any')}</option>
+              <option value="P">{t('tradesPage.purchase')}</option>
+              <option value="S">{t('tradesPage.sale')}</option>
+              <option value="A">{t('tradesPage.grantAward')}</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-700 mb-1">A/D</label>
+            <label className="block text-xs text-gray-700 mb-1">{t('tradesPage.acquiredDisposedLabel')}</label>
             <select value={acquired} onChange={(e) => setAcquired(e.target.value as '' | 'A' | 'D')} className="w-full border border-gray-300 rounded-md py-2 px-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-              <option value="">Any</option>
-              <option value="A">Acquired</option>
-              <option value="D">Disposed</option>
+              <option value="">{t('tradesPage.any')}</option>
+              <option value="A">{t('tradesPage.acquired')}</option>
+              <option value="D">{t('tradesPage.disposed')}</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-700 mb-1">Ownership</label>
+            <label className="block text-xs text-gray-700 mb-1">{t('tradesPage.ownershipLabel')}</label>
             <select value={ownership} onChange={(e) => setOwnership(e.target.value as '' | 'D' | 'I')} className="w-full border border-gray-300 rounded-md py-2 px-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-              <option value="">Any</option>
-              <option value="D">Direct</option>
-              <option value="I">Indirect</option>
+              <option value="">{t('tradesPage.any')}</option>
+              <option value="D">{t('tradesPage.direct')}</option>
+              <option value="I">{t('tradesPage.indirect')}</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-700 mb-1">Symbol</label>
+            <label className="block text-xs text-gray-700 mb-1">{t('tradesPage.symbolLabel')}</label>
             <input value={symbol} onChange={(e) => setSymbol(e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-2 text-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="AAPL" />
           </div>
           <div>
-            <label className="block text-xs text-gray-700 mb-1">Min Value ($)</label>
+            <label className="block text-xs text-gray-700 mb-1">{t('tradesPage.minValueLabel')}</label>
             <input value={minValue} onChange={(e) => setMinValue(e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-2 text-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" inputMode="numeric" placeholder="1000000" />
           </div>
           <div>
-            <label className="block text-xs text-gray-700 mb-1">Min Shares</label>
+            <label className="block text-xs text-gray-700 mb-1">{t('tradesPage.minSharesLabel')}</label>
             <input value={minShares} onChange={(e) => setMinShares(e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-2 text-sm bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" inputMode="numeric" placeholder="10000" />
           </div>
           <div>
-            <label className="block text-xs text-gray-700 mb-1">From</label>
+            <label className="block text-xs text-gray-700 mb-1">{t('tradesPage.fromLabel')}</label>
             <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
           </div>
           <div>
-            <label className="block text-xs text-gray-700 mb-1">To</label>
+            <label className="block text-xs text-gray-700 mb-1">{t('tradesPage.toLabel')}</label>
             <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
           </div>
           <div className="col-span-2 md:col-span-1 flex gap-2">
-            <button onClick={fetchTrades} className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-blue-500">Apply</button>
+            <button onClick={fetchTrades} className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-blue-500">{t('tradesPage.applyButton')}</button>
             <button
               onClick={() => { setQ(''); setType(''); setAcquired(''); setOwnership(''); setIsDirector(false); setIsOfficer(false); setIsTen(false); setSymbol(''); setMinValue(''); setMinShares(''); setDateFrom(''); setDateTo(''); fetchTrades(); }}
               className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-700 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-blue-500"
             >
-              Reset
+              {t('tradesPage.resetButton')}
             </button>
           </div>
           <div className="flex items-center gap-3">
             <label className="inline-flex items-center gap-1 text-xs text-gray-700">
-              <input type="checkbox" className="rounded accent-blue-600" checked={isDirector} onChange={(e) => setIsDirector(e.target.checked)} /> Director
+              <input type="checkbox" className="rounded accent-blue-600" checked={isDirector} onChange={(e) => setIsDirector(e.target.checked)} /> {t('tradesPage.director')}
             </label>
             <label className="inline-flex items-center gap-1 text-xs text-gray-700">
-              <input type="checkbox" className="rounded accent-blue-600" checked={isOfficer} onChange={(e) => setIsOfficer(e.target.checked)} /> Officer
+              <input type="checkbox" className="rounded accent-blue-600" checked={isOfficer} onChange={(e) => setIsOfficer(e.target.checked)} /> {t('tradesPage.officer')}
             </label>
             <label className="inline-flex items-center gap-1 text-xs text-gray-700">
-              <input type="checkbox" className="rounded accent-blue-600" checked={isTen} onChange={(e) => setIsTen(e.target.checked)} /> 10%+
+              <input type="checkbox" className="rounded accent-blue-600" checked={isTen} onChange={(e) => setIsTen(e.target.checked)} /> {t('tradesPage.tenPercent')}
             </label>
           </div>
         </div>
@@ -241,7 +244,7 @@ export function TradesList() {
       {trades.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-gray-400 mb-2">📊</div>
-          <p className="text-gray-500">No trades found</p>
+          <p className="text-gray-500">{t('tradesPage.noTrades')}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -268,9 +271,9 @@ export function TradesList() {
                   <div className="flex items-center gap-4 text-xs text-gray-500">
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
-                      Filed: {formatDate(trade.filed_at)}
+                      {t('tradesPage.filedLabel')}: <FilingLink accessionNumber={trade.accession_number} filedAt={trade.filed_at} />
                     </div>
-                    <div>Transaction: {formatDate(trade.transaction_date)}</div>
+                    <div>{t('tradesPage.transactionLabel')}: {formatDate(trade.transaction_date)}</div>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
@@ -281,12 +284,12 @@ export function TradesList() {
                     <div className="flex gap-1">
                       {trade.is_director && (
                         <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">
-                          Director
+                          {t('tradesPage.director')}
                         </span>
                       )}
                       {trade.is_officer && (
                         <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                          Officer
+                          {t('tradesPage.officer')}
                         </span>
                       )}
                     </div>
@@ -296,25 +299,25 @@ export function TradesList() {
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-gray-50 rounded-md">
                 <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wide">Shares</div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wide">{t('trades.shares')}</div>
                   <div className="text-sm font-medium text-gray-900">
                     {formatNumber(trade.shares_transacted)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wide">Price</div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wide">{t('trades.price')}</div>
                   <div className="text-sm font-medium text-gray-900">
                     {formatCurrency(trade.price_per_share)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wide">Total Value</div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wide">{t('trades.value')}</div>
                   <div className="text-sm font-medium text-gray-900">
                     {formatCurrency(trade.transaction_value)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wide">Owned After</div>
+                  <div className="text-xs text-gray-500 uppercase tracking-wide">{t('tradesPage.ownedAfter')}</div>
                   <div className="text-sm font-medium text-gray-900">
                     {formatNumber(trade.shares_owned_following)}
                   </div>

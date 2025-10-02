@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, Calendar, DollarSign, ArrowUpDown } from 'lucide-react';
+import { X, Calendar } from 'lucide-react';
 import { TradeData, db } from '../../lib/database';
 import { ClickableCompany, ClickableInsider } from './ClickableLinks';
+import FilingLink from './FilingLink';
 
 interface TradesModalProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export function TradesModal({
     if (isOpen) {
       fetchTrades();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, companyFilter, insiderFilter]);
 
   const fetchTrades = async () => {
@@ -191,7 +193,7 @@ export function TradesModal({
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-500">
                         <Calendar className="h-4 w-4" />
-                        Filed: {formatDate(trade.filed_at)} | Transaction: {formatDate(trade.transaction_date)}
+                        Filed: <FilingLink accessionNumber={trade.accession_number} filedAt={trade.filed_at} /> | Transaction: {formatDate(trade.transaction_date)}
                       </div>
                     </div>
                     <div className="text-right">

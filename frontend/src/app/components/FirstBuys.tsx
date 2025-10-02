@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { TradeData, db } from '../../lib/database';
-import { Calendar, Building2, User, Sparkles } from 'lucide-react';
+import { Calendar, Sparkles } from 'lucide-react';
 import { ClickableCompany, ClickableInsider } from './ClickableLinks';
 import { TradesModal } from './TradesModal';
+import FilingLink from './FilingLink';
 
 export function FirstBuys() {
   const [trades, setTrades] = useState<TradeData[]>([]);
@@ -27,7 +28,7 @@ export function FirstBuys() {
       const data = await db.getFirstBuys(45, 365);
       setTrades(data);
       setError(null);
-    } catch (err) {
+    } catch {
       setError('Failed to fetch first-time buys');
     } finally {
       setLoading(false);
@@ -169,7 +170,7 @@ export function FirstBuys() {
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-gray-500">
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
-                      Filed: {formatDate(t.filed_at)}
+                      Filed: <FilingLink accessionNumber={t.accession_number} filedAt={t.filed_at} />
                     </div>
                     <div>Transaction: {formatDate(t.transaction_date)}</div>
                   </div>

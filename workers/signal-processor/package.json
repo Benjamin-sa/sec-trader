@@ -1,0 +1,23 @@
+{
+  "name": "signal-processor",
+  "version": "1.0.0",
+  "description": "Pre-processes insider trading signals for fast API responses",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "signals",
+    "insider-trading"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

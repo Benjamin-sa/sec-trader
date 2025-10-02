@@ -1,38 +1,44 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { TradesList } from './components/TradesList';
 import { ImportantTrades } from './components/ImportantTrades';
 import { ClusterBuys } from './components/ClusterBuys';
 import { FirstBuys } from './components/FirstBuys';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { TrendingUp, AlertTriangle, Users, Sparkles } from 'lucide-react';
 
 export default function SECAnalyzer() {
+  const t = useTranslations();
   const [activeTab, setActiveTab] = useState<'latest' | 'important' | 'clusters' | 'first-buys'>('latest');
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            SEC Form 4 Insider Trading Analyzer
-          </h1>
-          <p className="text-gray-600">
-            Monitor insider trading activity, identify important transactions, and detect cluster buying patterns
-          </p>
+        <div className="mb-8 flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              {t('header.title')}
+            </h1>
+            <p className="text-gray-600">
+              {t('header.description')}
+            </p>
+          </div>
+          <LanguageSwitcher />
         </div>
 
         {/* Stats Overview */}
-  <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <TrendingUp className="h-8 w-8 text-blue-600" />
               </div>
               <div className="ml-4">
-                <h3 className="text-lg font-medium text-gray-900">Latest Filings</h3>
-                <p className="text-sm text-gray-500">Recent insider transactions</p>
+                <h3 className="text-lg font-medium text-gray-900">{t('stats.latestFilings.title')}</h3>
+                <p className="text-sm text-gray-500">{t('stats.latestFilings.description')}</p>
               </div>
             </div>
           </div>
@@ -43,8 +49,8 @@ export default function SECAnalyzer() {
                 <AlertTriangle className="h-8 w-8 text-orange-600" />
               </div>
               <div className="ml-4">
-                <h3 className="text-lg font-medium text-gray-900">Important Trades</h3>
-                <p className="text-sm text-gray-500">High-value & executive trades</p>
+                <h3 className="text-lg font-medium text-gray-900">{t('stats.importantTrades.title')}</h3>
+                <p className="text-sm text-gray-500">{t('stats.importantTrades.description')}</p>
               </div>
             </div>
           </div>
@@ -55,8 +61,8 @@ export default function SECAnalyzer() {
                 <Users className="h-8 w-8 text-green-600" />
               </div>
               <div className="ml-4">
-                <h3 className="text-lg font-medium text-gray-900">Cluster Buys</h3>
-                <p className="text-sm text-gray-500">Coordinated buying activity</p>
+                <h3 className="text-lg font-medium text-gray-900">{t('stats.clusterBuys.title')}</h3>
+                <p className="text-sm text-gray-500">{t('stats.clusterBuys.description')}</p>
               </div>
             </div>
           </div>
@@ -67,8 +73,8 @@ export default function SECAnalyzer() {
                 <Sparkles className="h-8 w-8 text-green-700" />
               </div>
               <div className="ml-4">
-                <h3 className="text-lg font-medium text-gray-900">First Buys (12M)</h3>
-                <p className="text-sm text-gray-500">First insider buy after a year</p>
+                <h3 className="text-lg font-medium text-gray-900">{t('stats.firstBuys.title')}</h3>
+                <p className="text-sm text-gray-500">{t('stats.firstBuys.description')}</p>
               </div>
             </div>
           </div>
@@ -85,7 +91,7 @@ export default function SECAnalyzer() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Latest Filings
+              {t('tabs.latestFilings')}
             </button>
             <button
               onClick={() => setActiveTab('important')}
@@ -95,7 +101,7 @@ export default function SECAnalyzer() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Important Trades
+              {t('tabs.importantTrades')}
             </button>
             <button
               onClick={() => setActiveTab('clusters')}
@@ -105,7 +111,7 @@ export default function SECAnalyzer() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Cluster Buys
+              {t('tabs.clusterBuys')}
             </button>
             <button
               onClick={() => setActiveTab('first-buys')}
@@ -115,7 +121,7 @@ export default function SECAnalyzer() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              First Buys
+              {t('tabs.firstBuys')}
             </button>
           </nav>
         </div>
