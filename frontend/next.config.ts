@@ -1,8 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Remove 'output: export' to enable dynamic rendering
-  // This allows pages to be generated on-demand for any company/filing
+  // No static export - we need SSR for dynamic routes and fresh data
   trailingSlash: true,
   skipTrailingSlashRedirect: true,
   images: {

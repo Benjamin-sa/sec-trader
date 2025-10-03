@@ -1,6 +1,8 @@
-name = "sec-trader-frontend"
-compatibility_date = "2023-12-01"
-pages_build_output_dir = "out"
+name = "sec-trader-app"
+compatibility_date = "2024-10-01"
+pages_build_output_dir = ".vercel/output/static"
 
 [vars]
 NEXT_PUBLIC_API_URL = "https://api-server.benjamin-sautersb.workers.dev"
+
+compatibility_flags = ["nodejs_compat"]

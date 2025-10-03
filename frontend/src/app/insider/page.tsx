@@ -1,6 +1,9 @@
 import InsiderPageClient from './InsiderPageClient';
 
-export const dynamic = 'force-static';
+// Force dynamic rendering - insider data changes based on query params
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const runtime = 'edge';
 
 export default function InsiderIndexPage() {
   return <InsiderPageClient />;
