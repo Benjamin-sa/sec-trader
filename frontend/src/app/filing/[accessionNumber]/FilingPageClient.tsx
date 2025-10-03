@@ -83,9 +83,15 @@ export default function FilingPageClient() {
   };
 
   // Generate SEC filing URL
-  const getSecFilingUrl = (cik: string) => {
-    // Get CIK from first trade
-    return `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${cik}&type=4&dateb=&owner=include&count=100&search_text=`;
+  const getSecFilingUrl = (cik: string, accessionNumber: string) => {
+    // Remove dashes from accession number for the path
+    // e.g., "0001234567-12-123456" becomes "000123456712123456"
+    const accessionNoNoDashes = accessionNumber.replace(/-/g, '');
+    
+    // SEC EDGAR Archives URL format:
+    // https://www.sec.gov/Archives/edgar/data/{CIK}/{ACCESSION_NO_DASHES}/{ACCESSION_NUMBER}-index.htm
+    // This links directly to the specific filing index page
+    return `https://www.sec.gov/Archives/edgar/data/${cik}/${accessionNoNoDashes}/${accessionNumber}-index.htm`;
   };
 
   const getTransactionCodeExplanation = (code: string): { title: string; description: string; isPositive: boolean } => {
@@ -204,15 +210,17 @@ export default function FilingPageClient() {
                   </div>
                 </div>
               </div>
-              <a
-                href={getSecFilingUrl(accessionNumber)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <span>View on SEC.gov</span>
-                <ArrowTopRightOnSquareIcon className="h-5 w-5" />
-              </a>
+              {primaryTrade && (
+                <a
+                  href={getSecFilingUrl(primaryTrade.issuer_cik, accessionNumber)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <span>View on SEC.gov</span>
+                  <ArrowTopRightOnSquareIcon className="h-5 w-5" />
+                </a>
+              )}
             </div>
           </div>
         </div>

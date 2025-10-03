@@ -4,14 +4,16 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { TradeData, db } from '../../lib/database';
 import { useCurrencyFormatter, useNumberFormatter } from '@/hooks/useTranslation';
-import { Calendar, Search } from 'lucide-react';
+import { Calendar, Search, ExternalLink } from 'lucide-react';
 import { ClickableCompany, ClickableInsider } from './ClickableLinks';
 import FilingLink from './FilingLink';
+import { useRouter } from 'next/navigation';
 
 export function TradesList() {
   const t = useTranslations();
   const currencyFormatter = useCurrencyFormatter();
   const numberFormatter = useNumberFormatter();
+  const router = useRouter();
   
   const [trades, setTrades] = useState<TradeData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,6 +104,10 @@ export function TradesList() {
 
   const getTransactionTypeIcon = (disposedCode: string) => {
     return disposedCode === 'A' ? '↗️' : '↘️';
+  };
+
+  const handleCardClick = (accessionNumber: string) => {
+    router.push(`/filing/${accessionNumber}`);
   };
 
   if (loading) {
@@ -249,27 +255,44 @@ export function TradesList() {
       ) : (
         <div className="space-y-4">
           {trades.map((trade, index) => (
-            <div key={trade.transaction_id ? `tx-${trade.transaction_id}` : `trade-${index}-${trade.accession_number}-${trade.person_cik || 'unknown'}`} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-              <div className="flex justify-between items-start mb-3">
+            <div 
+              key={trade.transaction_id ? `tx-${trade.transaction_id}` : `trade-${index}-${trade.accession_number}-${trade.person_cik || 'unknown'}`} 
+              className="relative border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group"
+              onClick={() => handleCardClick(trade.accession_number)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleCardClick(trade.accession_number);
+                }
+              }}
+            >
+              {/* Visual indicator that card is clickable */}
+              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                <ExternalLink className="h-4 w-4 text-gray-400" />
+              </div>
+
+              <div className="flex justify-between items-start mb-3 pr-8">
                 <div className="flex-1">
-                  <div className="mb-1">
+                  <div className="mb-1" onClick={(e) => e.stopPropagation()}>
                     <ClickableCompany
                       name={trade.issuer_name}
                       symbol={trade.trading_symbol}
                       cik={trade.issuer_cik}
-                      className="text-base"
+                      className="text-base relative z-10"
                     />
                   </div>
-                  <div className="mb-2">
+                  <div className="mb-2" onClick={(e) => e.stopPropagation()}>
                     <ClickableInsider
                       name={trade.person_name}
                       cik={trade.person_cik}
                       title={trade.officer_title}
-                      className="text-sm"
+                      className="text-sm relative z-10"
                     />
                   </div>
                   <div className="flex items-center gap-4 text-xs text-gray-500">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                       <Calendar className="h-3 w-3" />
                       {t('tradesPage.filedLabel')}: <FilingLink accessionNumber={trade.accession_number} filedAt={trade.filed_at} />
                     </div>
