@@ -1,0 +1,6 @@
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "sec_filings"
+database_id = "becbe21b-9435-4df7-80da-3df9ed7f1b96"
+

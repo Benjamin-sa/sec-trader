@@ -252,5 +252,23 @@
     "sell": "Sell",
     "loading": "Loading insider trades...",
     "errorLoading": "Error loading insider data"
+  },
+  "nav": {
+    "home": "Home",
+    "homeDescription": "Latest insider trades and filings",
+    "explore": "Explore",
+    "exploreDescription": "Search companies and insiders",
+    "watchlist": "Watchlist",
+    "watchlistDescription": "Track your favorite stocks",
+    "alerts": "Alerts",
+    "alertsDescription": "Get notified of important trades",
+    "settings": "Settings",
+    "language": "Language",
+    "account": "Account",
+    "signIn": "Sign In",
+    "signOut": "Sign Out"
+  },
+  "footer": {
+    "copyright": "© {year} SEC Insider Trading Analyzer. All rights reserved."
   }
 }

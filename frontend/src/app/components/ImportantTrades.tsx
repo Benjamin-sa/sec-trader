@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { TradeData, db } from '../../lib/database';
-import { Calendar, AlertTriangle, Crown } from 'lucide-react';
+import { TradeData } from '../../lib/database';
+import { cachedApiClient } from '../../lib/cached-api-client';
+import { Calendar, AlertTriangle, Crown, ChevronDown, ChevronUp } from 'lucide-react';
 import { ClickableCompany, ClickableInsider } from './ClickableLinks';
 import FilingLink from './FilingLink';
 
@@ -18,6 +19,20 @@ export function ImportantTrades() {
   const [trades, setTrades] = useState<TradeData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  const toggleCard = (tradeId: string | number) => {
+    const id = String(tradeId);
+    setExpandedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
 
   useEffect(() => {
     fetchImportantTrades();
@@ -26,7 +41,7 @@ export function ImportantTrades() {
   const fetchImportantTrades = async () => {
     try {
       setLoading(true);
-      const data = await db.getImportantTrades();
+      const data = await cachedApiClient.getImportantTrades();
       setTrades(data);
       setError(null);
     } catch {
@@ -46,9 +61,29 @@ export function ImportantTrades() {
     }).format(value);
   };
 
+  const formatCurrencyCompact = (value: number | null) => {
+    if (!value) return 'N/A';
+    if (value >= 1000000) {
+      return `$${(value / 1000000).toFixed(1)}M`;
+    } else if (value >= 1000) {
+      return `$${(value / 1000).toFixed(0)}K`;
+    }
+    return `$${value.toFixed(0)}`;
+  };
+
   const formatNumber = (value: number | null) => {
     if (!value) return 'N/A';
     return new Intl.NumberFormat('en-US').format(value);
+  };
+
+  const formatNumberCompact = (value: number | null) => {
+    if (!value) return 'N/A';
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}M`;
+    } else if (value >= 1000) {
+      return `${(value / 1000).toFixed(0)}K`;
+    }
+    return value.toString();
   };
 
   const formatDate = (dateString: string) => {
@@ -197,110 +232,250 @@ export function ImportantTrades() {
           <p className="text-gray-500">No important trades found</p>
         </div>
       ) : (
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-3 sm:space-y-6">
           {trades.map((trade, index) => {
             const importance = getImportanceLevel(trade);
+            const tradeId = String(trade.transaction_id || `${trade.accession_number}-${trade.person_cik}-${trade.transaction_code}-${trade.shares_transacted}-${index}`);
+            const isExpanded = expandedCards.has(tradeId);
             
             return (
-              <div key={trade.transaction_id || `${trade.accession_number}-${trade.person_cik}-${trade.transaction_code}-${trade.shares_transacted}-${index}`} className="border border-gray-200 rounded-lg p-4 sm:p-5 hover:shadow-lg transition-shadow bg-gradient-to-r from-white to-gray-50">
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-0 mb-3 sm:mb-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                      <AlertTriangle className="h-5 w-5 text-orange-500" />
-                      <span className={`px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium uppercase tracking-wide ${importance.color}`}>
-                        {importance.level} Priority
-                      </span>
+              <div key={tradeId} className="border border-gray-200 rounded-lg hover:shadow-lg transition-shadow bg-gradient-to-r from-white to-gray-50 overflow-hidden">
+                {/* Mobile: Compact Card with Expand Button */}
+                <div className="sm:hidden">
+                  {/* Collapsed View - Always Visible */}
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <div className="flex items-center gap-1.5 mb-2.5">
+                          <AlertTriangle className="h-4 w-4 text-orange-500 flex-shrink-0" />
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${importance.color}`}>
+                            {importance.level}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${getTransactionTypeColor(trade.transaction_code, trade.acquired_disposed_code)}`}>
+                            {getTransactionTypeIcon(trade.acquired_disposed_code)}
+                          </span>
+                        </div>
+                        <div className="mb-1.5">
+                          <ClickableCompany
+                            name={trade.issuer_name}
+                            symbol={trade.trading_symbol}
+                            cik={trade.issuer_cik}
+                            className="text-sm font-bold text-gray-900 leading-tight line-clamp-1"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <ClickableInsider
+                            name={trade.person_name}
+                            cik={trade.person_cik}
+                            title={trade.officer_title}
+                            className="text-xs text-gray-700 font-medium"
+                          />
+                          {(trade.is_director || trade.is_officer || trade.is_ten_percent_owner) && (
+                            <Crown className="h-3.5 w-3.5 text-purple-500 flex-shrink-0" />
+                          )}
+                        </div>
+                        {trade.is_officer && trade.officer_title && (
+                          <div className="text-[10px] text-gray-600">{trade.officer_title}</div>
+                        )}
+                      </div>
+                      <div className="text-right flex-shrink-0 min-w-[80px]">
+                        <div className="text-sm font-bold text-gray-900 mb-0.5 leading-tight">
+                          {formatCurrencyCompact(trade.transaction_value)}
+                        </div>
+                        <div className="text-[10px] text-gray-500 leading-tight">
+                          {formatNumberCompact(trade.shares_transacted)}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 mb-1 min-w-0">
-                      <ClickableCompany
-                        name={trade.issuer_name}
-                        symbol={trade.trading_symbol}
-                        cik={trade.issuer_cik}
-                        className="text-base sm:text-lg font-semibold"
-                      />
+                    
+                    {/* Quick Info - Always Visible */}
+                    <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-200">
+                      <span>{formatDate(trade.transaction_date)}</span>
+                      <button
+                        onClick={() => toggleCard(tradeId)}
+                        className="flex items-center gap-1 text-blue-600 font-medium hover:text-blue-700 active:text-blue-800 px-2 py-1 -mr-2 rounded"
+                      >
+                        {isExpanded ? (
+                          <>Less <ChevronUp className="h-4 w-4" /></>
+                        ) : (
+                          <>Details <ChevronDown className="h-4 w-4" /></>
+                        )}
+                      </button>
                     </div>
-                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
-                      <ClickableInsider
-                        name={trade.person_name}
-                        cik={trade.person_cik}
-                        title={trade.officer_title}
-                        className="text-sm sm:text-base"
-                      />
-                      {(trade.is_director || trade.is_officer || trade.is_ten_percent_owner) && (
-                        <Crown className="h-4 w-4 text-purple-500" />
+                  </div>
+
+                  {/* Expanded Details - Collapsible */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 space-y-3 border-t border-gray-100">
+                      {/* Top Reasons - Most Important */}
+                      {importance.reasons.length > 0 && (
+                        <div>
+                          <div className="text-xs font-semibold text-gray-700 mb-2">Why This Matters:</div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {importance.reasons.slice(0, 4).map((reason, idx) => (
+                              <span key={idx} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
+                                • {reason}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                       )}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-gray-500">
-                      <div className="flex items-center gap-1">
+
+                      {/* Transaction Details */}
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">Price per Share</div>
+                          <div className="font-semibold text-gray-900">{formatCurrency(trade.price_per_share)}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">Owns After</div>
+                          <div className="font-semibold text-gray-900">{formatNumber(trade.shares_owned_following)}</div>
+                        </div>
+                      </div>
+
+                      {typeof trade.pct_of_holdings === 'number' && trade.pct_of_holdings > 0 && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+                          <div className="text-xs font-semibold text-amber-900">
+                            ~{Math.round(trade.pct_of_holdings * 100)}% of their holdings
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Special Flags */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {trade.is_director && (
+                          <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded">
+                            Board Director
+                          </span>
+                        )}
+                        {trade.is_ten_percent_owner && (
+                          <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded">
+                            10%+ Owner
+                          </span>
+                        )}
+                        {typeof trade.cluster_size === 'number' && trade.cluster_size >= 2 && (
+                          <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
+                            Cluster Buy ({trade.cluster_size})
+                          </span>
+                        )}
+                        {trade.direct_or_indirect === 'I' && (
+                          <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">Indirect</span>
+                        )}
+                        {Boolean((trade as unknown as { is_10b5_1_plan?: boolean | number }).is_10b5_1_plan) && (
+                          <span className="px-2 py-1 bg-yellow-50 text-yellow-800 text-xs rounded">10b5-1</span>
+                        )}
+                      </div>
+
+                      {/* Filing Link */}
+                      <div className="flex items-center gap-1 text-xs text-gray-500 pt-2 border-t border-gray-100">
                         <Calendar className="h-3 w-3" />
                         Filed: <FilingLink accessionNumber={trade.accession_number} filedAt={trade.filed_at} />
                       </div>
-                      <div>Transaction: {formatDate(trade.transaction_date)}</div>
                     </div>
-                  </div>
-                  <div className="flex sm:flex-col items-start sm:items-end gap-2">
-                    <span className={`px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium ${getTransactionTypeColor(trade.transaction_code, trade.acquired_disposed_code)}`}>
-                      {getTransactionTypeIcon(trade.acquired_disposed_code)} {trade.transaction_description}
-                    </span>
-                    <div className="text-left sm:text-right">
-                      <div className="text-lg sm:text-2xl font-bold text-gray-900">
-                        {formatCurrency(trade.transaction_value)}
-                      </div>
-                      <div className="text-xs sm:text-sm text-gray-500">
-                        {formatNumber(trade.shares_transacted)} shares @ {formatCurrency(trade.price_per_share)}
-                      </div>
-                      {typeof trade.pct_of_holdings === 'number' && trade.pct_of_holdings > 0 ? (
-                        <div className="text-[11px] sm:text-xs text-gray-500">~{Math.round(trade.pct_of_holdings * 100)}% of holdings</div>
-                      ) : null}
-                    </div>
-                  </div>
+                  )}
                 </div>
 
-                {/* Importance Reasons */}
-                <div className="mb-3 sm:mb-4">
-                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                    {importance.reasons.map((reason, index) => (
-                      <span key={index} className="px-2 py-0.5 sm:py-1 bg-blue-50 text-blue-700 text-[11px] sm:text-xs rounded-full">
-                        {reason}
+                {/* Desktop: Full Card - Always Expanded */}
+                <div className="hidden sm:block p-5">
+                  <div className="flex flex-row justify-between items-start gap-0 mb-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <AlertTriangle className="h-5 w-5 text-orange-500" />
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wide ${importance.color}`}>
+                          {importance.level} Priority
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mb-1 min-w-0">
+                        <ClickableCompany
+                          name={trade.issuer_name}
+                          symbol={trade.trading_symbol}
+                          cik={trade.issuer_cik}
+                          className="text-lg font-semibold"
+                        />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <ClickableInsider
+                          name={trade.person_name}
+                          cik={trade.person_cik}
+                          title={trade.officer_title}
+                          className="text-base"
+                        />
+                        {(trade.is_director || trade.is_officer || trade.is_ten_percent_owner) && (
+                          <Crown className="h-4 w-4 text-purple-500" />
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          Filed: <FilingLink accessionNumber={trade.accession_number} filedAt={trade.filed_at} />
+                        </div>
+                        <div>Transaction: {formatDate(trade.transaction_date)}</div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getTransactionTypeColor(trade.transaction_code, trade.acquired_disposed_code)}`}>
+                        {getTransactionTypeIcon(trade.acquired_disposed_code)} {trade.transaction_description}
                       </span>
-                    ))}
-                    {trade.direct_or_indirect === 'I' && (
-                      <span className="px-2 py-0.5 sm:py-1 bg-gray-100 text-gray-700 text-[11px] sm:text-xs rounded-full">Indirect ownership</span>
-                    )}
-                    {Boolean((trade as unknown as { is_10b5_1_plan?: boolean | number }).is_10b5_1_plan) && (
-                      <span className="px-2 py-0.5 sm:py-1 bg-yellow-50 text-yellow-800 text-[11px] sm:text-xs rounded-full">10b5-1 Plan</span>
-                    )}
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-gray-900">
+                          {formatCurrency(trade.transaction_value)}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {formatNumber(trade.shares_transacted)} shares @ {formatCurrency(trade.price_per_share)}
+                        </div>
+                        {typeof trade.pct_of_holdings === 'number' && trade.pct_of_holdings > 0 ? (
+                          <div className="text-xs text-gray-500">~{Math.round(trade.pct_of_holdings * 100)}% of holdings</div>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                {/* Executive Badges */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                    {trade.is_director && (
-                      <span className="px-2 py-0.5 sm:py-1 bg-purple-100 text-purple-800 text-[11px] sm:text-xs font-medium rounded">
-                        Board Director
-                      </span>
-                    )}
-                    {trade.is_officer && (
-                      <span className="px-2 py-0.5 sm:py-1 bg-blue-100 text-blue-800 text-[11px] sm:text-xs font-medium rounded">
-                        {trade.officer_title || 'C-Suite Officer'}
-                      </span>
-                    )}
-                    {trade.is_ten_percent_owner && (
-                      <span className="px-2 py-0.5 sm:py-1 bg-red-100 text-red-800 text-[11px] sm:text-xs font-medium rounded">
-                        10%+ Owner
-                      </span>
-                    )}
-                    {typeof trade.cluster_size === 'number' && trade.cluster_size >= 2 && (
-                      <span className="px-2 py-0.5 sm:py-1 bg-green-100 text-green-800 text-[11px] sm:text-xs font-medium rounded">
-                        Cluster Buy: {trade.cluster_size}
-                      </span>
-                    )}
+                  {/* Importance Reasons */}
+                  <div className="mb-4">
+                    <div className="flex flex-wrap gap-2">
+                      {importance.reasons.map((reason, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
+                          {reason}
+                        </span>
+                      ))}
+                      {trade.direct_or_indirect === 'I' && (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">Indirect ownership</span>
+                      )}
+                      {Boolean((trade as unknown as { is_10b5_1_plan?: boolean | number }).is_10b5_1_plan) && (
+                        <span className="px-2 py-1 bg-yellow-50 text-yellow-800 text-xs rounded-full">10b5-1 Plan</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-left sm:text-right">
-                    <div className="text-[11px] sm:text-xs text-gray-500 uppercase tracking-wide">Owns After Transaction</div>
-                    <div className="text-sm sm:text-base font-medium text-gray-900">
-                      {formatNumber(trade.shares_owned_following)} shares
+
+                  {/* Executive Badges */}
+                  <div className="flex flex-row items-center justify-between gap-3">
+                    <div className="flex flex-wrap gap-2">
+                      {trade.is_director && (
+                        <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded">
+                          Board Director
+                        </span>
+                      )}
+                      {trade.is_officer && (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">
+                          {trade.officer_title || 'C-Suite Officer'}
+                        </span>
+                      )}
+                      {trade.is_ten_percent_owner && (
+                        <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded">
+                          10%+ Owner
+                        </span>
+                      )}
+                      {typeof trade.cluster_size === 'number' && trade.cluster_size >= 2 && (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
+                          Cluster Buy: {trade.cluster_size}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-gray-500 uppercase tracking-wide">Owns After Transaction</div>
+                      <div className="text-base font-medium text-gray-900">
+                        {formatNumber(trade.shares_owned_following)} shares
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -1,0 +1,21 @@
+name = "auth-worker"
+main = "index.js"
+compatibility_date = "2025-03-25"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sec_filings"
+database_id = "becbe21b-9435-4df7-80da-3df9ed7f1b96"
+
+# wrangler.toml (wrangler v3.88.0^)
+[observability.logs]
+enabled = true
+
+# Environment variables
+[vars]
+BASE_URL="https://sec-frontend.benjamin-sautersb.workers.dev"
+
+# For local development
+# [env.dev]
+# Use .dev.vars file for secrets

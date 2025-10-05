@@ -1,6 +1,6 @@
 name = "api-server"
 main = "index.js"
-compatibility_date = "2023-12-01"
+compatibility_date = "2025-03-25"
 
 # Environment variables
 [env.production.vars]

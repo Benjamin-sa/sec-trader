@@ -12,7 +12,6 @@
 
 import { processClusterBuys } from "./src/processors/cluster-buys.js";
 import { processImportantTrades } from "./src/processors/important-trades.js";
-import { processFirstBuys } from "./src/processors/first-buys.js";
 import { processHistoricalMetrics } from "./src/processors/historical-metrics.js";
 import { Logger } from "./src/utils/logger.js";
 
@@ -40,10 +39,6 @@ export default {
       // 2. Important trade scoring
       logger.info("🎯 Processing important trades...");
       results.importantTrades = await processImportantTrades(env, logger);
-
-      // 3. First buy detection
-      logger.info("🆕 Processing first buys...");
-      results.firstBuys = await processFirstBuys(env, logger);
 
       // 4. Historical metrics aggregation
       logger.info("📈 Processing historical metrics...");
@@ -111,10 +106,6 @@ export default {
 
         if (processor === "all" || processor === "important-trades") {
           results.importantTrades = await processImportantTrades(env, logger);
-        }
-
-        if (processor === "all" || processor === "first-buys") {
-          results.firstBuys = await processFirstBuys(env, logger);
         }
 
         if (processor === "all" || processor === "historical-metrics") {

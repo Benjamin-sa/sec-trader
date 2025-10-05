@@ -17,7 +17,6 @@ import { API_ROUTES } from "./config/constants.js";
 import { handleHealth } from "./handlers/health.js";
 import { handleLatestTrades } from "./handlers/trades.js";
 import { handleImportantTrades } from "./handlers/important-trades.js";
-import { handleFirstBuySignals } from "./handlers/first-buys.js";
 import { handleClusterBuys } from "./handlers/cluster-buys.js";
 import { handleTradesByCompany } from "./handlers/company-trades.js";
 import { handleTradesByInsider } from "./handlers/insider-trades.js";
@@ -51,7 +50,6 @@ async function routeRequest(pathname, request, env) {
     [API_ROUTES.HEALTH]: handleHealth,
     [API_ROUTES.TRADES_LATEST]: handleLatestTrades,
     [API_ROUTES.TRADES_IMPORTANT]: handleImportantTrades,
-    [API_ROUTES.TRADES_FIRST_BUYS]: handleFirstBuySignals,
     [API_ROUTES.TRADES_CLUSTERS]: handleClusterBuys,
     [API_ROUTES.TRADES_BY_COMPANY]: handleTradesByCompany,
     [API_ROUTES.TRADES_BY_INSIDER]: handleTradesByInsider,

@@ -104,7 +104,23 @@ export async function handleGetBars(request, env) {
 
     // Add technical analysis if requested
     if (includeAnalysis) {
-      response.analysis = calculateTechnicalIndicators(data.bars);
+      // Get the actual current price from snapshot
+      let currentPrice = null;
+      try {
+        const { fetchSnapshot } = await import("../services/alpaca-client.js");
+        const snapshot = await fetchSnapshot(symbolValidation.symbol, env);
+        currentPrice =
+          snapshot?.latestTrade?.p || snapshot?.prevDailyBar?.c || null;
+      } catch (snapshotError) {
+        console.warn(
+          "Could not fetch current price from snapshot:",
+          snapshotError
+        );
+        // Fall back to last bar's close if snapshot fails
+        currentPrice = data.bars[data.bars.length - 1]?.c || null;
+      }
+
+      response.analysis = calculateTechnicalIndicators(data.bars, currentPrice);
       response.significantMoves = detectSignificantMoves(formattedBars, 5);
     }
 

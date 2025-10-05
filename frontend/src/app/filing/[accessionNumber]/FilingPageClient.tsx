@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Database, TradeData } from '@/lib/database';
+import { TradeData } from '@/lib/database';
+import { cachedApiClient } from '@/lib/cached-api-client';
 import { 
   ArrowLeftIcon, 
   DocumentTextIcon,
@@ -30,12 +31,11 @@ export default function FilingPageClient() {
       
       try {
         setLoading(true);
-        const db = new Database();
         
         // Fetch all trades with this accession number
-        const allTrades = await db.getLatestTrades(1000);
+        const allTrades = await cachedApiClient.getLatestTrades(1000);
         const filingTrades = allTrades.filter(
-          trade => trade.accession_number === accessionNumber
+          (trade: TradeData) => trade.accession_number === accessionNumber
         );
         
         setTrades(filingTrades);

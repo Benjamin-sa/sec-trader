@@ -18,6 +18,7 @@ wrangler.toml.backup
 #next.js
 frontend/.next/
 frontend/out/
+frontend/.open-next/
 
 # IDE
 *.vscode/

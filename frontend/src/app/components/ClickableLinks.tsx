@@ -107,9 +107,9 @@ export function ClickableInsider({
         type="button"
       >
         <User className="h-4 w-4 text-gray-500 shrink-0" />
-        <span className="font-medium text-gray-700">{name}</span>
+        <span className="font-medium text-gray-700 truncate">{name}</span>
         {title && (
-          <span className="text-sm text-gray-600">• {title}</span>
+          <span className="text-sm text-gray-600 shrink-0">• {title}</span>
         )}
       </button>
     );
@@ -120,9 +120,9 @@ export function ClickableInsider({
     return (
       <span className={`inline-flex items-center gap-1 text-gray-400 ${className}`}>
         <User className="h-4 w-4 shrink-0" />
-        <span className="font-medium">{name}</span>
+        <span className="font-medium truncate">{name}</span>
         {title && (
-          <span className="text-sm text-gray-600">• {title}</span>
+          <span className="text-sm text-gray-600 shrink-0">• {title}</span>
         )}
       </span>
     );
@@ -135,9 +135,9 @@ export function ClickableInsider({
       title={`View all trades for ${name}${title ? ` (${title})` : ''}`}
     >
       <User className="h-4 w-4 text-gray-500 shrink-0" />
-      <span className="font-medium">{name}</span>
+      <span className="font-medium truncate">{name}</span>
       {title && (
-        <span className="text-sm text-gray-600">• {title}</span>
+        <span className="text-sm text-gray-600 shrink-0">• {title}</span>
       )}
     </Link>
   );

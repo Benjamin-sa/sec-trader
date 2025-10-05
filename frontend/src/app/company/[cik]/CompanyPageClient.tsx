@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Database, TradeData } from '@/lib/database';
-import { alpacaClient, MarketBarsResponse, NewsArticle } from '@/lib/api-client';
+import { TradeData } from '@/lib/database';
+import { MarketBarsResponse, NewsArticle } from '@/lib/api-client';
+import { cachedApiClient, cachedAlpacaClient } from '@/lib/cached-api-client';
 import { 
   ArrowLeftIcon, 
   BuildingOfficeIcon, 
@@ -42,8 +43,7 @@ export default function CompanyPageClient() {
       
       try {
         setLoading(true);
-        const db = new Database();
-        const result = await db.getTradesByCompany(undefined, cik, undefined, 100);
+        const result = await cachedApiClient.getTradesByCompany(undefined, cik, undefined, 100);
         setTrades(result);
         
         // Set company name and symbol from first trade
@@ -69,7 +69,7 @@ export default function CompanyPageClient() {
       try {
         setNewsLoading(true);
         setNewsError(null);
-        const response = await alpacaClient.getNewsBySymbol(tradingSymbol, 20, 30);
+        const response = await cachedAlpacaClient.getNewsBySymbol(tradingSymbol, 20, 30);
         setNews(response.news);
       } catch (err) {
         console.error('Error fetching news:', err);
@@ -89,7 +89,7 @@ export default function CompanyPageClient() {
       try {
         setMarketLoading(true);
         setMarketError(null);
-        const data = await alpacaClient.getMarketBars(tradingSymbol, selectedTimeframe, selectedTimeRange, true);
+        const data = await cachedAlpacaClient.getMarketBars(tradingSymbol, selectedTimeframe, selectedTimeRange, true);
         setMarketData(data);
       } catch (err) {
         console.error('Error fetching market data:', err);
@@ -191,60 +191,61 @@ export default function CompanyPageClient() {
     );
   }
 
+  if (trades.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-gray-600 text-xl mb-4">No trades found for this company.</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => router.push('/')}
-                  className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  <ArrowLeftIcon className="h-5 w-5 mr-2" />
-                  Back to Home
-                </button>
-                <div className="h-6 border-l border-gray-300"></div>
-                <div className="flex items-center space-x-3">
-                  <BuildingOfficeIcon className="h-8 w-8 text-blue-600" />
-                  <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
-                      {companyName || 'Company Profile'}
-                    </h1>
-                    <div className="flex items-center gap-3 text-sm text-gray-500">
-                      <span>CIK: {cik}</span>
-                      {tradingSymbol && (
-                        <>
-                          <span>•</span>
-                          <span className="font-medium text-blue-600">{tradingSymbol}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6">
+        {/* Breadcrumb & Company Info */}
+        <div className="mb-4 sm:mb-6">
+          <button
+            onClick={() => router.push('/')}
+            className="flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors mb-3"
+          >
+            <ArrowLeftIcon className="h-4 w-4 mr-1.5" />
+            <span>Back to Home</span>
+          </button>
+          
+          <div className="flex items-start gap-3">
+            <div className="bg-blue-100 p-2 rounded-lg flex-shrink-0">
+              <BuildingOfficeIcon className="h-6 w-6 sm:h-7 sm:w-7 text-blue-600" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-words mb-1">
+                {companyName || 'Company Profile'}
+              </h1>
+              <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
+                <span className="font-mono bg-gray-100 px-2 py-1 rounded">CIK: {cik}</span>
+                {tradingSymbol && (
+                  <span className="font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">{tradingSymbol}</span>
+                )}
               </div>
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tabs */}
-        <div className="mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
+        <div className="mb-4 sm:mb-6">
+          <div className="border-b border-gray-200 overflow-x-auto">
+            <nav className="-mb-px flex space-x-4 sm:space-x-8 min-w-max">
               <button
                 onClick={() => setActiveTab('overview')}
                 className={`${
                   activeTab === 'overview'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+                } whitespace-nowrap py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center`}
               >
-                <BuildingOfficeIcon className="h-5 w-5 mr-2" />
-                Overview
+                <BuildingOfficeIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
+                <span className="hidden sm:inline">Overview</span>
+                <span className="sm:hidden">Info</span>
               </button>
               <button
                 onClick={() => setActiveTab('news')}
@@ -252,11 +253,12 @@ export default function CompanyPageClient() {
                   activeTab === 'news'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+                } whitespace-nowrap py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center ${!tradingSymbol ? 'opacity-50 cursor-not-allowed' : ''}`}
                 disabled={!tradingSymbol}
               >
-                <NewspaperIcon className="h-5 w-5 mr-2" />
-                News {news.length > 0 && `(${news.length})`}
+                <NewspaperIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
+                <span>News</span>
+                {news.length > 0 && <span className="ml-1">({news.length})</span>}
               </button>
               <button
                 onClick={() => setActiveTab('market')}
@@ -264,11 +266,12 @@ export default function CompanyPageClient() {
                   activeTab === 'market'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+                } whitespace-nowrap py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center ${!tradingSymbol ? 'opacity-50 cursor-not-allowed' : ''}`}
                 disabled={!tradingSymbol}
               >
-                <ChartBarIcon className="h-5 w-5 mr-2" />
-                Market Data
+                <ChartBarIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
+                <span className="hidden sm:inline">Market Data</span>
+                <span className="sm:hidden">Market</span>
               </button>
               <button
                 onClick={() => setActiveTab('trades')}
@@ -276,10 +279,11 @@ export default function CompanyPageClient() {
                   activeTab === 'trades'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+                } whitespace-nowrap py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center`}
               >
-                <UsersIcon className="h-5 w-5 mr-2" />
-                All Trades ({trades.length})
+                <UsersIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
+                <span>Trades</span>
+                <span className="ml-1">({trades.length})</span>
               </button>
             </nav>
           </div>

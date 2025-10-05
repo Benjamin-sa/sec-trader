@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { Database, TradeData } from '@/lib/database';
+import { TradeData } from '@/lib/database';
+import { cachedApiClient } from '@/lib/cached-api-client';
 import { ArrowLeftIcon, UserIcon } from '@heroicons/react/24/outline';
 import FilingLink from '@/app/components/FilingLink';
 
@@ -23,8 +24,7 @@ export default function InsiderPageClient() {
       if (!cik) return;
       try {
         setLoading(true);
-        const db = new Database();
-        const result = await db.getTradesByInsider(cik, undefined, 100);
+        const result = await cachedApiClient.getTradesByInsider(cik, undefined, 100);
         setTrades(result);
 
         if (result.length > 0) {
@@ -93,35 +93,31 @@ export default function InsiderPageClient() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => router.push('/')}
-                  className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  <ArrowLeftIcon className="h-5 w-5 mr-2" />
-                  Back to Home
-                </button>
-                <div className="h-6 border-l border-gray-300"></div>
-                <div className="flex items-center space-x-3">
-                  <UserIcon className="h-8 w-8 text-blue-600" />
-                  <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
-                      {insiderName || 'Insider Profile'}
-                    </h1>
-                    <p className="text-sm text-gray-500">CIK: {cik}</p>
-                  </div>
-                </div>
-              </div>
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6">
+        {/* Breadcrumb & Insider Info */}
+        <div className="mb-4 sm:mb-6">
+          <button
+            onClick={() => router.push('/')}
+            className="flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors mb-3"
+          >
+            <ArrowLeftIcon className="h-4 w-4 mr-1.5" />
+            <span>Back to Home</span>
+          </button>
+          
+          <div className="flex items-start gap-3">
+            <div className="bg-blue-100 p-2 rounded-lg flex-shrink-0">
+              <UserIcon className="h-6 w-6 sm:h-7 sm:w-7 text-blue-600" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-words mb-1">
+                {insiderName || 'Insider Profile'}
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-600 font-mono bg-gray-100 px-2 py-1 rounded inline-block">
+                CIK: {cik}
+              </p>
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-lg shadow">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">

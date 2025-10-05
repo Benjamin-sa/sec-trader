@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { I18nProvider } from '@/components/I18nProvider';
+import { Navigation } from '@/components/Navigation';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,7 +30,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <I18nProvider>
-          {children}
+          <Navigation />
+          {/* Add padding-bottom for mobile bottom nav */}
+          <div className="pb-16 md:pb-0">
+            {children}
+          </div>
         </I18nProvider>
       </body>
     </html>

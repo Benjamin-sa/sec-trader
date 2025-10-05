@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { TradeData, db } from '../../lib/database';
+import { TradeData } from '../../lib/database';
+import { cachedApiClient } from '../../lib/cached-api-client';
 import { useCurrencyFormatter, useNumberFormatter } from '@/hooks/useTranslation';
 import { Calendar, Search, ExternalLink } from 'lucide-react';
 import { ClickableCompany, ClickableInsider } from './ClickableLinks';
@@ -61,7 +62,7 @@ export function TradesList() {
       });
       console.log('Calling API with filters:', filterParams);
       
-      const data = await db.getLatestTrades(25, filterParams);
+      const data = await cachedApiClient.getLatestTrades(25, filterParams);
       console.log('API returned trades:', data.length);
       
       setTrades(data);
@@ -253,11 +254,11 @@ export function TradesList() {
           <p className="text-gray-500">{t('tradesPage.noTrades')}</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {trades.map((trade, index) => (
             <div 
               key={trade.transaction_id ? `tx-${trade.transaction_id}` : `trade-${index}-${trade.accession_number}-${trade.person_cik || 'unknown'}`} 
-              className="relative border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group"
+              className="relative border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group"
               onClick={() => handleCardClick(trade.accession_number)}
               role="button"
               tabIndex={0}
@@ -268,80 +269,86 @@ export function TradesList() {
                 }
               }}
             >
-              {/* Visual indicator that card is clickable */}
-              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                <ExternalLink className="h-4 w-4 text-gray-400" />
-              </div>
-
-              <div className="flex justify-between items-start mb-3 pr-8">
-                <div className="flex-1">
-                  <div className="mb-1" onClick={(e) => e.stopPropagation()}>
-                    <ClickableCompany
-                      name={trade.issuer_name}
-                      symbol={trade.trading_symbol}
-                      cik={trade.issuer_cik}
-                      className="text-base relative z-10"
-                    />
+              {/* Mobile: Badges at top, Desktop: Badges on right */}
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
+                {/* Badges - show at top on mobile, right on desktop */}
+                <div className="flex flex-wrap items-center gap-2 sm:order-2 sm:flex-col sm:items-end sm:flex-shrink-0 relative">
+                  {/* Visual indicator that card is clickable - positioned relative to badges */}
+                  <div className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <ExternalLink className="h-4 w-4 text-gray-400" />
                   </div>
-                  <div className="mb-2" onClick={(e) => e.stopPropagation()}>
-                    <ClickableInsider
-                      name={trade.person_name}
-                      cik={trade.person_cik}
-                      title={trade.officer_title}
-                      className="text-sm relative z-10"
-                    />
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
-                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Calendar className="h-3 w-3" />
-                      {t('tradesPage.filedLabel')}: <FilingLink accessionNumber={trade.accession_number} filedAt={trade.filed_at} />
-                    </div>
-                    <div>{t('tradesPage.transactionLabel')}: {formatDate(trade.transaction_date)}</div>
-                  </div>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTransactionTypeColor(trade.transaction_code)}`}>
+                  
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getTransactionTypeColor(trade.transaction_code)}`}>
                     {getTransactionTypeIcon(trade.acquired_disposed_code)} {trade.transaction_code}
                   </span>
                   {(trade.is_director || trade.is_officer) && (
-                    <div className="flex gap-1">
+                    <>
                       {trade.is_director && (
-                        <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">
+                        <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded whitespace-nowrap">
                           {t('tradesPage.director')}
                         </span>
                       )}
                       {trade.is_officer && (
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded whitespace-nowrap">
                           {t('tradesPage.officer')}
                         </span>
                       )}
-                    </div>
+                    </>
                   )}
+                </div>
+
+                {/* Company and Insider Info */}
+                <div className="flex-1 min-w-0 sm:order-1 sm:pr-8">
+                  <div className="mb-1 min-w-0" onClick={(e) => e.stopPropagation()}>
+                    <ClickableCompany
+                      name={trade.issuer_name}
+                      symbol={trade.trading_symbol}
+                      cik={trade.issuer_cik}
+                      className="text-sm sm:text-base relative z-10 break-words"
+                    />
+                  </div>
+                  <div className="mb-2 min-w-0" onClick={(e) => e.stopPropagation()}>
+                    <ClickableInsider
+                      name={trade.person_name}
+                      cik={trade.person_cik}
+                      title={trade.officer_title}
+                      className="text-xs sm:text-sm relative z-10 break-words"
+                    />
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-gray-500">
+                    <div className="flex items-center gap-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                      <Calendar className="h-3 w-3 flex-shrink-0" />
+                      <span className="whitespace-nowrap">{t('tradesPage.filedLabel')}:</span>
+                      <FilingLink accessionNumber={trade.accession_number} filedAt={trade.filed_at} />
+                    </div>
+                    <div className="whitespace-nowrap">{t('tradesPage.transactionLabel')}: {formatDate(trade.transaction_date)}</div>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-3 bg-gray-50 rounded-md">
-                <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wide">{t('trades.shares')}</div>
-                  <div className="text-sm font-medium text-gray-900">
+              {/* Data Grid - 2 columns on mobile, 4 on desktop */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 p-2.5 sm:p-3 bg-gray-50 rounded-md">
+                <div className="min-w-0">
+                  <div className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">{t('trades.shares')}</div>
+                  <div className="text-sm font-medium text-gray-900 truncate" title={formatNumber(trade.shares_transacted)}>
                     {formatNumber(trade.shares_transacted)}
                   </div>
                 </div>
-                <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wide">{t('trades.price')}</div>
-                  <div className="text-sm font-medium text-gray-900">
+                <div className="min-w-0">
+                  <div className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">{t('trades.price')}</div>
+                  <div className="text-sm font-medium text-gray-900 truncate" title={formatCurrency(trade.price_per_share)}>
                     {formatCurrency(trade.price_per_share)}
                   </div>
                 </div>
-                <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wide">{t('trades.value')}</div>
-                  <div className="text-sm font-medium text-gray-900">
+                <div className="min-w-0">
+                  <div className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">{t('trades.value')}</div>
+                  <div className="text-sm font-medium text-gray-900 truncate" title={formatCurrency(trade.transaction_value)}>
                     {formatCurrency(trade.transaction_value)}
                   </div>
                 </div>
-                <div>
-                  <div className="text-xs text-gray-500 uppercase tracking-wide">{t('tradesPage.ownedAfter')}</div>
-                  <div className="text-sm font-medium text-gray-900">
+                <div className="min-w-0">
+                  <div className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">{t('tradesPage.ownedAfter')}</div>
+                  <div className="text-sm font-medium text-gray-900 truncate" title={formatNumber(trade.shares_owned_following)}>
                     {formatNumber(trade.shares_owned_following)}
                   </div>
                 </div>

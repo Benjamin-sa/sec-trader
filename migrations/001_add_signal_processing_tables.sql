@@ -92,31 +92,6 @@ CREATE TABLE IF NOT EXISTS important_trade_signals (
   UNIQUE(transaction_id)
 );
 
--- -----------------------------------------------------------------------------
--- FIRST BUY SIGNALS
--- -----------------------------------------------------------------------------
-
--- First-time purchases by insiders (strong bullish signal)
-CREATE TABLE IF NOT EXISTS first_buy_signals (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  transaction_id INTEGER NOT NULL REFERENCES insider_transactions(id) ON DELETE CASCADE,
-  person_id INTEGER NOT NULL REFERENCES persons(id),
-  issuer_id INTEGER NOT NULL REFERENCES issuers(id),
-  
-  -- Lookback parameters used
-  lookback_days INTEGER NOT NULL,            -- Days checked for previous buys
-  
-  -- Signal strength
-  importance_score INTEGER NOT NULL,
-  is_part_of_cluster BOOLEAN DEFAULT FALSE,
-  cluster_size INTEGER DEFAULT 0,
-  
-  -- Metadata
-  detected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  is_active BOOLEAN DEFAULT TRUE,
-  
-  UNIQUE(transaction_id)
-);
 
 -- -----------------------------------------------------------------------------
 -- HISTORICAL METRICS & TRENDS
@@ -195,11 +170,6 @@ CREATE INDEX IF NOT EXISTS idx_important_signals_score ON important_trade_signal
 CREATE INDEX IF NOT EXISTS idx_important_signals_filing ON important_trade_signals(filing_id);
 CREATE INDEX IF NOT EXISTS idx_important_signals_active ON important_trade_signals(is_active) WHERE is_active = TRUE;
 CREATE INDEX IF NOT EXISTS idx_important_signals_purchase ON important_trade_signals(is_purchase) WHERE is_purchase = TRUE;
-
--- First buy signals indexes
-CREATE INDEX IF NOT EXISTS idx_first_buy_person ON first_buy_signals(person_id);
-CREATE INDEX IF NOT EXISTS idx_first_buy_issuer ON first_buy_signals(issuer_id);
-CREATE INDEX IF NOT EXISTS idx_first_buy_active ON first_buy_signals(is_active) WHERE is_active = TRUE;
 
 -- History indexes
 CREATE INDEX IF NOT EXISTS idx_signal_history_date ON signal_history(date DESC);

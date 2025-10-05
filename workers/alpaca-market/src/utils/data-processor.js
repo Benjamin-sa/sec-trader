@@ -4,8 +4,10 @@
 
 /**
  * Calculate technical indicators from OHLCV bars
+ * @param {Array} bars - Array of OHLCV bars
+ * @param {number|null} actualCurrentPrice - The actual current price from snapshot (optional)
  */
-export function calculateTechnicalIndicators(bars) {
+export function calculateTechnicalIndicators(bars, actualCurrentPrice = null) {
   if (!bars || bars.length === 0) {
     return null;
   }
@@ -23,10 +25,17 @@ export function calculateTechnicalIndicators(bars) {
   const minVolume = Math.min(...volumes);
 
   // Calculate price metrics
-  const currentPrice = closes[closes.length - 1];
+  // Use the actual current price if provided, otherwise fall back to last bar's close
+  const currentPrice =
+    actualCurrentPrice !== null
+      ? actualCurrentPrice
+      : closes[closes.length - 1];
   const startPrice = closes[0];
   const priceChange = currentPrice - startPrice;
   const priceChangePercent = ((priceChange / startPrice) * 100).toFixed(2);
+
+  // Get the last bar's date for reference
+  const lastBarDate = bars[bars.length - 1]?.t || null;
 
   // Calculate high/low
   const highs = bars.map((bar) => bar.h);
@@ -47,6 +56,7 @@ export function calculateTechnicalIndicators(bars) {
     maxVolume,
     minVolume,
     totalBars: bars.length,
+    lastBarDate,
   };
 }
 

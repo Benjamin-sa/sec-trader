@@ -172,14 +172,6 @@ class RestApiClient {
     return this.fetchApi<ClusterBuy[]>('/api/trades/clusters', queryParams);
   }
 
-  async getFirstBuys(recentDays: number = 30, lookbackDays: number = 365): Promise<TradeData[]> {
-    const queryParams = this.buildQueryParams({ 
-      recent_days: recentDays, 
-      lookback_days: lookbackDays 
-    } as ApiFilters & { recent_days?: number; lookback_days?: number });
-    return this.fetchApi<TradeData[]>('/api/trades/first-buys', queryParams);
-  }
-
   async getTradesByCompany(
     symbol?: string,
     cik?: string,
