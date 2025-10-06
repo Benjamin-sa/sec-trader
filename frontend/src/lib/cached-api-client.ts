@@ -11,7 +11,7 @@
  */
 
 import { apiClient, alpacaClient } from './api-client';
-import type { TradeData, ClusterBuy, ApiFilters, MarketBarsResponse, NewsResponse } from './api-client';
+import type { TradeData, ClusterBuy, ApiFilters, NewsResponse } from './api-client';
 import { cache, createCacheKey, type CacheOptions } from './cache';
 
 // ============================================================================
@@ -200,44 +200,7 @@ export class CachedRestApiClient {
 // ============================================================================
 
 export class CachedAlpacaApiClient {
-  /**
-   * Get market bars with caching
-   */
-  async getMarketBars(
-    symbol: string,
-    timeframe: string = '1Day',
-    months: number = 3,
-    analysis: boolean = true,
-    options?: Partial<CacheOptions>
-  ): Promise<MarketBarsResponse> {
-    const cacheKey = createCacheKey('market-bars', { symbol, timeframe, months, analysis });
-    
-    return cache.get(
-      cacheKey,
-      () => alpacaClient.getMarketBars(symbol, timeframe, months, analysis),
-      { ...CACHE_CONFIG.marketBars, ...options, namespace: 'alpaca' }
-    );
-  }
 
-  /**
-   * Get market bars with custom range (cached)
-   */
-  async getMarketBarsCustomRange(
-    symbol: string,
-    start: string,
-    end: string,
-    timeframe: string = '1Day',
-    analysis: boolean = true,
-    options?: Partial<CacheOptions>
-  ): Promise<MarketBarsResponse> {
-    const cacheKey = createCacheKey('market-bars-range', { symbol, start, end, timeframe, analysis });
-    
-    return cache.get(
-      cacheKey,
-      () => alpacaClient.getMarketBarsCustomRange(symbol, start, end, timeframe, analysis),
-      { ...CACHE_CONFIG.marketBars, ...options, namespace: 'alpaca' }
-    );
-  }
 
   /**
    * Get market snapshot with short-term caching
@@ -271,21 +234,6 @@ export class CachedAlpacaApiClient {
     );
   }
 
-  /**
-   * Get quote with short-term caching
-   */
-  async getQuote(
-    symbol: string,
-    options?: Partial<CacheOptions>
-  ): Promise<Record<string, unknown>> {
-    const cacheKey = createCacheKey('market-quote', { symbol });
-    
-    return cache.get(
-      cacheKey,
-      () => alpacaClient.getQuote(symbol),
-      { ...CACHE_CONFIG.marketQuote, ...options, namespace: 'alpaca' }
-    );
-  }
 
   /**
    * Get news with caching

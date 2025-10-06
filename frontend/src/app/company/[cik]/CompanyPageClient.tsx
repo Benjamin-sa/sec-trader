@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { TradeData } from '@/lib/database';
-import { MarketBarsResponse, NewsArticle } from '@/lib/api-client';
+import { NewsArticle } from '@/lib/api-client';
 import { cachedApiClient, cachedAlpacaClient } from '@/lib/cached-api-client';
 import { 
   ArrowLeftIcon, 
@@ -14,9 +14,28 @@ import {
   ArrowTrendingDownIcon,
   UsersIcon
 } from '@heroicons/react/24/outline';
-import MarketChart from '@/app/components/MarketChartInteractive';
 import CompanyNews from '@/app/components/CompanyNews';
 import FilingLink from '@/app/components/FilingLink';
+import TradingViewWidget from '@/components/TradingViewWidget';
+
+interface MarketSnapshot {
+  snapshot?: {
+    latestTrade?: {
+      p?: number;
+      s?: number;
+    };
+    dailyBar?: {
+      o?: number;
+      h?: number;
+      l?: number;
+      c?: number;
+      v?: number;
+    };
+    prevDailyBar?: {
+      c?: number;
+    };
+  };
+}
 
 export default function CompanyPageClient() {
   const params = useParams();
@@ -27,15 +46,13 @@ export default function CompanyPageClient() {
   const [tradingSymbol, setTradingSymbol] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [marketData, setMarketData] = useState<MarketBarsResponse | null>(null);
-  const [marketLoading, setMarketLoading] = useState(false);
-  const [marketError, setMarketError] = useState<string | null>(null);
+  const [snapshot, setSnapshot] = useState<MarketSnapshot | null>(null);
+  const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [snapshotError, setSnapshotError] = useState<string | null>(null);
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsError, setNewsError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'market' | 'news'>('overview');
-  const [selectedTimeRange, setSelectedTimeRange] = useState<number>(3); // Default 3 months
-  const [selectedTimeframe, setSelectedTimeframe] = useState<string>('1Day'); // Default daily bars
+  const [activeTab, setActiveTab] = useState<'overview' | 'trades' | 'news' | 'livechart'>('overview');
 
   useEffect(() => {
     const fetchCompanyTrades = async () => {
@@ -82,33 +99,26 @@ export default function CompanyPageClient() {
     fetchNews();
   }, [tradingSymbol]);
 
+  // Fetch market snapshot when symbol is available
   useEffect(() => {
-    const fetchMarketData = async () => {
-      if (!tradingSymbol || activeTab !== 'market') return;
+    const fetchSnapshot = async () => {
+      if (!tradingSymbol) return;
       
       try {
-        setMarketLoading(true);
-        setMarketError(null);
-        const data = await cachedAlpacaClient.getMarketBars(tradingSymbol, selectedTimeframe, selectedTimeRange, true);
-        setMarketData(data);
+        setSnapshotLoading(true);
+        setSnapshotError(null);
+        const data = await cachedAlpacaClient.getSnapshot(tradingSymbol);
+        setSnapshot(data);
       } catch (err) {
-        console.error('Error fetching market data:', err);
-        setMarketError(err instanceof Error ? err.message : 'Failed to fetch market data');
+        console.error('Error fetching snapshot:', err);
+        setSnapshotError(err instanceof Error ? err.message : 'Failed to fetch market snapshot');
       } finally {
-        setMarketLoading(false);
+        setSnapshotLoading(false);
       }
     };
 
-    fetchMarketData();
-  }, [tradingSymbol, activeTab, selectedTimeRange, selectedTimeframe]);
-
-  const handleTimeRangeChange = (months: number) => {
-    setSelectedTimeRange(months);
-  };
-
-  const handleTimeframeChange = (timeframe: string) => {
-    setSelectedTimeframe(timeframe);
-  };
+    fetchSnapshot();
+  }, [tradingSymbol]);
 
   const formatCurrency = (value: number | null) => {
     if (value === null) return 'N/A';
@@ -261,17 +271,17 @@ export default function CompanyPageClient() {
                 {news.length > 0 && <span className="ml-1">({news.length})</span>}
               </button>
               <button
-                onClick={() => setActiveTab('market')}
+                onClick={() => setActiveTab('livechart')}
                 className={`${
-                  activeTab === 'market'
+                  activeTab === 'livechart'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 } whitespace-nowrap py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center ${!tradingSymbol ? 'opacity-50 cursor-not-allowed' : ''}`}
                 disabled={!tradingSymbol}
               >
                 <ChartBarIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
-                <span className="hidden sm:inline">Market Data</span>
-                <span className="sm:hidden">Market</span>
+                <span className="hidden sm:inline">Live Chart</span>
+                <span className="sm:hidden">Chart</span>
               </button>
               <button
                 onClick={() => setActiveTab('trades')}
@@ -353,6 +363,120 @@ export default function CompanyPageClient() {
                 </div>
               </div>
             </div>
+
+            {/* Market Snapshot - Only show if trading symbol exists */}
+            {tradingSymbol && snapshot && snapshot.snapshot && (
+              <div className="bg-white rounded-lg shadow">
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h2 className="text-xl font-semibold text-gray-900">Market Snapshot - {tradingSymbol}</h2>
+                  <p className="text-sm text-gray-500 mt-1">Real-time market data</p>
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {/* Latest Trade */}
+                    {snapshot.snapshot.latestTrade && (
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-xs text-gray-500 mb-1">Latest Price</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          ${snapshot.snapshot.latestTrade.p?.toFixed(2) || 'N/A'}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {snapshot.snapshot.latestTrade.s ? `${snapshot.snapshot.latestTrade.s} shares` : ''}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Daily Bar */}
+                    {snapshot.snapshot.dailyBar && (
+                      <>
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <p className="text-xs text-gray-500 mb-1">Day Open</p>
+                          <p className="text-2xl font-bold text-gray-900">
+                            ${snapshot.snapshot.dailyBar.o?.toFixed(2) || 'N/A'}
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <p className="text-xs text-gray-500 mb-1">Day High</p>
+                          <p className="text-2xl font-bold text-green-600">
+                            ${snapshot.snapshot.dailyBar.h?.toFixed(2) || 'N/A'}
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <p className="text-xs text-gray-500 mb-1">Day Low</p>
+                          <p className="text-2xl font-bold text-red-600">
+                            ${snapshot.snapshot.dailyBar.l?.toFixed(2) || 'N/A'}
+                          </p>
+                        </div>
+                      </>
+                    )}
+                    
+                    {/* Previous Daily Bar */}
+                    {snapshot.snapshot.prevDailyBar && (
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-xs text-gray-500 mb-1">Previous Close</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          ${snapshot.snapshot.prevDailyBar.c?.toFixed(2) || 'N/A'}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Calculate Daily Change */}
+                    {snapshot.snapshot.latestTrade?.p && snapshot.snapshot.prevDailyBar?.c && (
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-xs text-gray-500 mb-1">Daily Change</p>
+                        <p className={`text-2xl font-bold ${
+                          (snapshot.snapshot.latestTrade.p - snapshot.snapshot.prevDailyBar.c) >= 0 
+                            ? 'text-green-600' 
+                            : 'text-red-600'
+                        }`}>
+                          {((snapshot.snapshot.latestTrade.p - snapshot.snapshot.prevDailyBar.c) >= 0 ? '+' : '')}
+                          {((snapshot.snapshot.latestTrade.p - snapshot.snapshot.prevDailyBar.c) / snapshot.snapshot.prevDailyBar.c * 100).toFixed(2)}%
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Volume */}
+                    {snapshot.snapshot.dailyBar?.v && (
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <p className="text-xs text-gray-500 mb-1">Volume</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {(snapshot.snapshot.dailyBar.v / 1000000).toFixed(2)}M
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={() => setActiveTab('livechart')}
+                      className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+                    >
+                      View live interactive chart →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {snapshotLoading && tradingSymbol && (
+              <div className="bg-white rounded-lg shadow p-8">
+                <div className="animate-pulse space-y-4">
+                  <div className="h-6 bg-gray-200 rounded w-1/4"></div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="h-24 bg-gray-200 rounded"></div>
+                    <div className="h-24 bg-gray-200 rounded"></div>
+                    <div className="h-24 bg-gray-200 rounded"></div>
+                    <div className="h-24 bg-gray-200 rounded"></div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {snapshotError && tradingSymbol && (
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <div className="text-red-600 text-sm mb-2">Unable to load market snapshot</div>
+                <p className="text-xs text-gray-500">{snapshotError}</p>
+              </div>
+            )}
 
             {/* Recent Trades Summary */}
             <div className="bg-white rounded-lg shadow">
@@ -567,8 +691,8 @@ export default function CompanyPageClient() {
           </div>
         )}
 
-        {/* Market Data Tab */}
-        {activeTab === 'market' && (
+        {/* Live Chart Tab - TradingView Widget */}
+        {activeTab === 'livechart' && (
           <div>
             {!tradingSymbol ? (
               <div className="bg-white rounded-lg shadow p-8 text-center">
@@ -580,39 +704,21 @@ export default function CompanyPageClient() {
                   This company doesn&apos;t have a trading symbol associated with it.
                 </p>
               </div>
-            ) : marketError ? (
-              <div className="bg-white rounded-lg shadow p-8 text-center">
-                <div className="text-red-600 text-xl mb-4">Error Loading Market Data</div>
-                <p className="text-gray-600 mb-4">{marketError}</p>
-                <p className="text-sm text-gray-500">
-                  Note: Market data may not be available for all symbols or may require a valid Alpaca API key.
-                </p>
-              </div>
-            ) : marketLoading ? (
-              <div className="bg-white rounded-lg shadow p-8">
-                <div className="animate-pulse space-y-4">
-                  <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="h-24 bg-gray-200 rounded"></div>
-                    <div className="h-24 bg-gray-200 rounded"></div>
-                    <div className="h-24 bg-gray-200 rounded"></div>
-                    <div className="h-24 bg-gray-200 rounded"></div>
-                  </div>
-                  <div className="h-64 bg-gray-200 rounded"></div>
+            ) : (
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Live Trading Chart - {tradingSymbol}
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Real-time interactive chart powered by TradingView
+                  </p>
+                </div>
+                <div style={{ height: '600px' }}>
+                  <TradingViewWidget symbol={tradingSymbol} />
                 </div>
               </div>
-            ) : marketData ? (
-              <MarketChart
-                symbol={tradingSymbol}
-                bars={marketData.bars}
-                analysis={marketData.analysis}
-                significantMoves={marketData.significantMoves}
-                onTimeRangeChange={handleTimeRangeChange}
-                currentTimeRange={selectedTimeRange}
-                onTimeframeChange={handleTimeframeChange}
-                currentTimeframe={selectedTimeframe}
-              />
-            ) : null}
+            )}
           </div>
         )}
       </div>

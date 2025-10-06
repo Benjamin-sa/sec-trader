@@ -3,12 +3,10 @@
  */
 
 import { handleHealth } from "../handlers/health.js";
-import { handleGetBars } from "../handlers/bars.js";
 import {
   handleGetSnapshot,
   handleGetMultipleSnapshots,
 } from "../handlers/snapshots.js";
-import { handleGetQuote } from "../handlers/quotes.js";
 import { handleGetNews, handleGetNewsBySymbol } from "../handlers/news.js";
 import { notFoundResponse } from "../utils/responses.js";
 
@@ -32,16 +30,8 @@ export function matchRoute(pathname) {
   // Pattern matches with parameters
   const routes = [
     {
-      pattern: /^\/api\/market\/bars\/([A-Z]+)$/,
-      handler: handleGetBars,
-    },
-    {
       pattern: /^\/api\/market\/snapshot\/([A-Z]+)$/,
       handler: handleGetSnapshot,
-    },
-    {
-      pattern: /^\/api\/market\/quote\/([A-Z]+)$/,
-      handler: handleGetQuote,
     },
     {
       pattern: /^\/api\/market\/news\/([A-Z]+)$/,

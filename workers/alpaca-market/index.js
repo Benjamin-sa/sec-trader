@@ -1,14 +1,12 @@
 /**
  * Alpaca Market Worker v2.0
  *
- * Professional market data service using Alpaca Markets API
+ * Simplified market data service using Alpaca Markets API
  *
  * Endpoints:
  * - GET /health - Health check
- * - GET /api/market/bars/:symbol - Historical OHLCV data
  * - GET /api/market/snapshot/:symbol - Current market snapshot
  * - GET /api/market/snapshots - Multiple snapshots (query: symbols)
- * - GET /api/market/quote/:symbol - Latest quote
  * - GET /api/market/news - Latest market news (query: symbols, limit, days, hours)
  * - GET /api/market/news/:symbol - Latest news for specific symbol
  *

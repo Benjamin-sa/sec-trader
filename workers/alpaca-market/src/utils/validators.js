@@ -2,11 +2,7 @@
  * Validation utilities for API requests
  */
 
-import {
-  TIMEFRAMES,
-  VALIDATION_RULES,
-  API_ERRORS,
-} from "../config/constants.js";
+import { VALIDATION_RULES, API_ERRORS } from "../config/constants.js";
 
 /**
  * Validate stock symbol format
@@ -57,26 +53,6 @@ export function validateSymbols(symbols) {
 }
 
 /**
- * Validate timeframe parameter
- */
-export function validateTimeframe(timeframe) {
-  if (!timeframe) {
-    return { valid: true, timeframe: "1Day" }; // Default
-  }
-
-  if (!TIMEFRAMES.includes(timeframe)) {
-    return {
-      valid: false,
-      error: `${
-        API_ERRORS.INVALID_TIMEFRAME
-      }. Must be one of: ${TIMEFRAMES.join(", ")}`,
-    };
-  }
-
-  return { valid: true, timeframe };
-}
-
-/**
  * Validate date range
  */
 export function validateDateRange(start, end) {
@@ -98,23 +74,6 @@ export function validateDateRange(start, end) {
   const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
 
   return { valid: true, start, end, daysDiff };
-}
-
-/**
- * Validate months parameter
- */
-export function validateMonths(months) {
-  const monthsNum = parseInt(months);
-
-  if (
-    isNaN(monthsNum) ||
-    monthsNum < VALIDATION_RULES.MIN_MONTHS ||
-    monthsNum > VALIDATION_RULES.MAX_MONTHS
-  ) {
-    return { valid: false, error: API_ERRORS.INVALID_MONTHS };
-  }
-
-  return { valid: true, months: monthsNum };
 }
 
 /**

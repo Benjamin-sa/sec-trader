@@ -42,46 +42,6 @@ async function alpacaFetch(url, env, errorContext = "Alpaca API") {
 }
 
 /**
- * Fetch stock bars (OHLCV data) for a given symbol and time range
- */
-export async function fetchStockBars(symbol, timeframe, start, end, env) {
-  const baseUrl = env.ALPACA_BASE_URL || ALPACA_CONFIG.BASE_URL;
-  const url = new URL(`${baseUrl}/v2/stocks/${symbol}/bars`);
-
-  url.searchParams.set("timeframe", timeframe);
-  url.searchParams.set("start", start);
-  url.searchParams.set("end", end);
-  url.searchParams.set("limit", ALPACA_CONFIG.MAX_LIMIT.toString());
-  url.searchParams.set("adjustment", ALPACA_CONFIG.ADJUSTMENT);
-  url.searchParams.set("feed", ALPACA_CONFIG.DEFAULT_FEED);
-
-  console.log(`Fetching bars for ${symbol} from ${start} to ${end}`);
-  return alpacaFetch(url, env, "Stock bars");
-}
-
-/**
- * Fetch latest trade for a given symbol
- */
-export async function fetchLatestTrade(symbol, env) {
-  const baseUrl = env.ALPACA_BASE_URL || ALPACA_CONFIG.BASE_URL;
-  const url = new URL(`${baseUrl}/v2/stocks/${symbol}/trades/latest`);
-  url.searchParams.set("feed", ALPACA_CONFIG.DEFAULT_FEED);
-
-  return alpacaFetch(url, env, "Latest trade");
-}
-
-/**
- * Fetch latest quote for a given symbol
- */
-export async function fetchLatestQuote(symbol, env) {
-  const baseUrl = env.ALPACA_BASE_URL || ALPACA_CONFIG.BASE_URL;
-  const url = new URL(`${baseUrl}/v2/stocks/${symbol}/quotes/latest`);
-  url.searchParams.set("feed", ALPACA_CONFIG.DEFAULT_FEED);
-
-  return alpacaFetch(url, env, "Latest quote");
-}
-
-/**
  * Fetch snapshot for a given symbol
  */
 export async function fetchSnapshot(symbol, env) {

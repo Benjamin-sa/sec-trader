@@ -62,51 +62,6 @@ export interface ApiFilters {
   end_date?: string;
 }
 
-export interface MarketBar {
-  timestamp: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-  tradeCount: number;
-  vwap: number | null;
-}
-
-export interface MarketAnalysis {
-  currentPrice: number;
-  startPrice: number;
-  priceChange: number;
-  priceChangePercent: string;
-  periodHigh: number;
-  periodLow: number;
-  sma20: string | null;
-  sma50: string | null;
-  avgVolume: number;
-  maxVolume: number;
-  minVolume: number;
-  totalBars: number;
-}
-
-export interface SignificantMove {
-  date: string;
-  previousClose: number;
-  currentClose: number;
-  changePercent: string;
-  volume: number;
-}
-
-export interface MarketBarsResponse {
-  symbol: string;
-  timeframe: string;
-  start: string;
-  end: string;
-  barCount: number;
-  bars: MarketBar[];
-  analysis?: MarketAnalysis;
-  significantMoves?: SignificantMove[];
-}
-
 export interface MarketSnapshot {
   symbol: string;
   snapshot: Record<string, unknown>;
@@ -248,27 +203,6 @@ class AlpacaApiClient {
     }
   }
 
-  async getMarketBars(
-    symbol: string,
-    timeframe: string = '1Day',
-    months: number = 3,
-    analysis: boolean = true
-  ): Promise<MarketBarsResponse> {
-    const queryParams = this.buildQueryParams({ timeframe, months, analysis });
-    return this.fetchApi<MarketBarsResponse>(`/api/market/bars/${symbol}`, queryParams);
-  }
-
-  async getMarketBarsCustomRange(
-    symbol: string,
-    start: string,
-    end: string,
-    timeframe: string = '1Day',
-    analysis: boolean = true
-  ): Promise<MarketBarsResponse> {
-    const queryParams = this.buildQueryParams({ start, end, timeframe, analysis });
-    return this.fetchApi<MarketBarsResponse>(`/api/market/bars/${symbol}`, queryParams);
-  }
-
   async getSnapshot(symbol: string): Promise<MarketSnapshot> {
     return this.fetchApi<MarketSnapshot>(`/api/market/snapshot/${symbol}`);
   }
@@ -276,10 +210,6 @@ class AlpacaApiClient {
   async getMultipleSnapshots(symbols: string[]): Promise<Record<string, MarketSnapshot>> {
     const queryParams = this.buildQueryParams({ symbols: symbols.join(',') });
     return this.fetchApi<Record<string, MarketSnapshot>>(`/api/market/snapshots`, queryParams);
-  }
-
-  async getQuote(symbol: string): Promise<Record<string, unknown>> {
-    return this.fetchApi<Record<string, unknown>>(`/api/market/quote/${symbol}`);
   }
 
   async getNews(
