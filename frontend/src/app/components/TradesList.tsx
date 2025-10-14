@@ -8,11 +8,12 @@ import { useCurrencyFormatter, useNumberFormatter } from '@/hooks/useTranslation
 import { Calendar, Search, ExternalLink } from 'lucide-react';
 import { ClickableCompany, ClickableInsider } from './ClickableLinks';
 import FilingLink from './FilingLink';
-import Link from 'next/link';
 import TransactionBadge from '@/components/TransactionBadge';
+import { useRouter } from 'next/navigation';
 
 export function TradesList() {
   const t = useTranslations();
+  const router = useRouter();
   const currencyFormatter = useCurrencyFormatter();
   const numberFormatter = useNumberFormatter();
   
@@ -252,18 +253,18 @@ export function TradesList() {
       ) : (
         <div className="space-y-3 sm:space-y-4">
           {trades.map((trade, index) => (
-            <Link 
+            <div 
               key={trade.transaction_id ? `tx-${trade.transaction_id}` : `trade-${index}-${trade.accession_number}-${trade.person_cik || 'unknown'}`} 
-              href={`/filing/${trade.accession_number}`}
-              className="relative border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group block"
+              onClick={() => router.push(`/filing/${trade.accession_number}`)}
+              className="relative border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group"
             >
               {/* Mobile: Badges at top, Desktop: Badges on right */}
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
                 {/* Badges - show at top on mobile, right on desktop */}
                 <div className="flex flex-wrap items-center gap-2 sm:order-2 sm:flex-col sm:items-end sm:flex-shrink-0 relative">
-                  {/* Visual indicator that card is clickable - positioned relative to badges */}
+                  {/* Visual indicator that card is clickable */}
                   <div className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <ExternalLink className="h-4 w-4 text-gray-400" />
+                    <ExternalLink className="h-4 w-4 text-blue-500" />
                   </div>
                   
                   <TransactionBadge
@@ -345,7 +346,7 @@ export function TradesList() {
                   </div>
                 </div>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}
