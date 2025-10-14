@@ -6,6 +6,7 @@ import { TradeData } from '@/lib/database';
 import { cachedApiClient } from '@/lib/cached-api-client';
 import { ArrowLeftIcon, UserIcon } from '@heroicons/react/24/outline';
 import FilingLink from '@/app/components/FilingLink';
+import HistoricalImportButton from '@/components/HistoricalImportButton';
 
 export default function InsiderPageClient() {
   const params = useParams();
@@ -109,12 +110,33 @@ export default function InsiderPageClient() {
               <UserIcon className="h-6 w-6 sm:h-7 sm:w-7 text-blue-600" />
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-words mb-1">
-                {insiderName || 'Insider Profile'}
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-600 font-mono bg-gray-100 px-2 py-1 rounded inline-block">
-                CIK: {cik}
-              </p>
+              <div className="flex items-start justify-between gap-4 mb-2">
+                <div className="min-w-0">
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-words mb-1">
+                    {insiderName || 'Insider Profile'}
+                  </h1>
+                  <p className="text-xs sm:text-sm text-gray-600 font-mono bg-gray-100 px-2 py-1 rounded inline-block">
+                    CIK: {cik}
+                  </p>
+                </div>
+                {cik && (
+                  <div className="flex-shrink-0">
+                    <HistoricalImportButton 
+                      cik={cik} 
+                      insiderName={insiderName}
+                      onImportComplete={async () => {
+                        // Refresh trades after import completes
+                        try {
+                          const result = await cachedApiClient.getTradesByInsider(cik, undefined, 100);
+                          setTrades(result);
+                        } catch (err) {
+                          console.error('Failed to refresh trades:', err);
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

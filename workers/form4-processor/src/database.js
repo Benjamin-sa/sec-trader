@@ -271,6 +271,20 @@ async function storeFootnotes(filingId, footnotes, db) {
         )
         .bind(filingId, footnote.id, footnote.text)
         .run();
+      
+      // If this footnote mentions 10b5-1, update the is_10b5_1_plan flag on related transactions
+      if (footnote.text && footnote.text.toLowerCase().includes('10b5-1')) {
+        await db.prepare(`
+          UPDATE insider_transactions
+          SET is_10b5_1_plan = 1
+          WHERE id IN (
+            SELECT tf.transaction_id
+            FROM transaction_footnotes tf
+            JOIN footnotes fn ON fn.id = tf.footnote_id
+            WHERE fn.filing_id = ? AND fn.footnote_id_in_xml = ?
+          )
+        `).bind(filingId, footnote.id).run();
+      }
     }
   }
 }
@@ -309,12 +323,22 @@ export async function updateFilingStatus(accessionNumber, status, db) {
  * Update processed filings tracking table
  */
 export async function updateProcessedFilingStatus(accessionNumber, status, db) {
-  await db
-    .prepare(
-      "UPDATE processed_filings SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE accession_number = ?"
-    )
-    .bind(status, accessionNumber)
-    .run();
+  // Set completed_at timestamp when status is completed
+  if (status === "completed") {
+    await db
+      .prepare(
+        "UPDATE processed_filings SET status = ?, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE accession_number = ?"
+      )
+      .bind(status, accessionNumber)
+      .run();
+  } else {
+    await db
+      .prepare(
+        "UPDATE processed_filings SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE accession_number = ?"
+      )
+      .bind(status, accessionNumber)
+      .run();
+  }
 }
 
 /**

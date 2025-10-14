@@ -21,7 +21,7 @@
  */
 export async function processClusterBuys(env, logger) {
   const startTime = Date.now();
-  const LOOKBACK_DAYS = 90;
+  const LOOKBACK_DAYS = 7; // Reduced from 90 to 7 days for performance
   const CLUSTER_WINDOW_DAYS = 3;
 
   try {
@@ -210,12 +210,12 @@ export async function processClusterBuys(env, logger) {
       }
     }
 
-    // Step 5: Clean up old inactive signals (older than 90 days)
+    // Step 5: Clean up old inactive signals (older than 30 days to keep some history)
     const cleanup = await env.DB.prepare(
       `
       DELETE FROM cluster_buy_signals
       WHERE is_active = FALSE
-        AND transaction_date < date('now', '-90 days')
+        AND transaction_date < date('now', '-30 days')
     `
     ).run();
 

@@ -20,6 +20,10 @@ import { handleImportantTrades } from "./handlers/important-trades.js";
 import { handleClusterBuys } from "./handlers/cluster-buys.js";
 import { handleTradesByCompany } from "./handlers/company-trades.js";
 import { handleTradesByInsider } from "./handlers/insider-trades.js";
+import {
+  handleInsiderBackfill,
+  handleInsiderBackfillStatus,
+} from "./handlers/insider-backfill.js";
 
 /**
  * Main worker entry point
@@ -53,7 +57,13 @@ async function routeRequest(pathname, request, env) {
     [API_ROUTES.TRADES_CLUSTERS]: handleClusterBuys,
     [API_ROUTES.TRADES_BY_COMPANY]: handleTradesByCompany,
     [API_ROUTES.TRADES_BY_INSIDER]: handleTradesByInsider,
+    [API_ROUTES.INSIDER_BACKFILL]: handleInsiderBackfill,
   };
+
+  // Special handling for status endpoint (GET only)
+  if (pathname === "/api/insider/backfill/status" && request.method === "GET") {
+    return await handleInsiderBackfillStatus(request, env);
+  }
 
   const handler = routeMap[pathname];
 

@@ -19,3 +19,8 @@ binding = "DB"
 database_name = "sec_filings"
 database_id = "becbe21b-9435-4df7-80da-3df9ed7f1b96"
 
+# Service binding to historical-importer worker
+[[services]]
+binding = "HISTORICAL_IMPORTER"
+service = "historical-importer"
+

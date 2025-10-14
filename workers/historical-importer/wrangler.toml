@@ -1,0 +1,21 @@
+name = "historical-importer"
+main = "index.js"
+compatibility_date = "2023-12-01"
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "sec_filings"
+database_id = "becbe21b-9435-4df7-80da-3df9ed7f1b96"
+
+# Queue for processing tasks (producer only)
+[[queues.producers]]
+binding = "filing_processing_queue"
+queue = "filing-processing-queue"
+
+[observability.logs]
+enabled = true
+
+# Environment variables
+[vars]
+SEC_API_BASE = "https://data.sec.gov"

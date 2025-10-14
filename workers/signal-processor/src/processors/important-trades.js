@@ -16,7 +16,7 @@
  */
 export async function processImportantTrades(env, logger) {
   const startTime = Date.now();
-  const LOOKBACK_DAYS = 90;
+  const LOOKBACK_DAYS = 7; // Reduced from 90 to 7 days for performance
   const MIN_IMPORTANCE_SCORE = 30; // Only store trades above this threshold
 
   try {
@@ -75,14 +75,8 @@ export async function processImportantTrades(env, logger) {
         CAST(it.shares_transacted AS REAL) / NULLIF((it.shares_owned_following + 
           CASE WHEN it.acquired_disposed_code = 'D' THEN it.shares_transacted ELSE 0 END), 0) as pct_of_holdings,
         
-        -- 10b5-1 plan detection
-        EXISTS (
-          SELECT 1
-          FROM transaction_footnotes tf
-          JOIN footnotes fn ON fn.id = tf.footnote_id
-          WHERE tf.transaction_id = it.id
-            AND LOWER(fn.footnote_text) LIKE '%10b5-1%'
-        ) as is_10b5_1_plan
+        -- 10b5-1 plan flag (now stored in column, no subquery needed!)
+        it.is_10b5_1_plan
         
       FROM insider_transactions it
       JOIN filings f ON it.filing_id = f.id
@@ -196,12 +190,12 @@ export async function processImportantTrades(env, logger) {
       }
     }
 
-    // Step 4: Clean up old inactive signals
+    // Step 4: Clean up old inactive signals (keep 30 days of history)
     const cleanup = await env.DB.prepare(
       `
       DELETE FROM important_trade_signals
       WHERE is_active = FALSE
-        AND detected_at < datetime('now', '-90 days')
+        AND detected_at < datetime('now', '-30 days')
     `
     ).run();
 

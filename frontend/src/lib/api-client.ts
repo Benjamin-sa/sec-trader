@@ -2,6 +2,14 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api-server.benjamin-sautersb.workers.dev';
 const ALPACA_API_URL = process.env.NEXT_PUBLIC_ALPACA_API_URL || 'https://alpaca-market.benjamin-sautersb.workers.dev';
 
+// Generic API response wrapper from workers/api
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  count: number;
+  timestamp: string;
+}
+
 export interface TradeData {
   accession_number: string;
   filed_at: string;
@@ -158,6 +166,68 @@ class RestApiClient {
     } as ApiFilters & { cik?: string; name?: string; limit?: number });
     return this.fetchApi<TradeData[]>('/api/trades/insider', queryParams);
   }
+
+  async triggerInsiderBackfill(
+    cik: string,
+    limit: number = 50,
+    test: boolean = false
+  ): Promise<ApiResponse<BackfillResponse>> {
+    const queryParams = this.buildQueryParams({ cik, limit, test } as ApiFilters & { limit?: number; test?: boolean });
+    const url = `${this.baseUrl}/api/insider/backfill${queryParams}`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Request failed: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getInsiderBackfillStatus(cik: string): Promise<ApiResponse<BackfillStatus>> {
+    const queryParams = this.buildQueryParams({ cik } as ApiFilters);
+    return this.fetchApi<ApiResponse<BackfillStatus>>('/api/insider/backfill/status', queryParams);
+  }
+}
+
+export interface BackfillResponse {
+  success?: boolean;
+  test?: boolean;
+  cik: string;
+  totalFound: number;
+  queued?: number;
+  skipped?: number;
+  errors?: number;
+  wouldBeQueued?: number;
+  wouldBeSkipped?: number;
+  message: string;
+  filings?: Array<{
+    accessionNumber: string;
+    filingDate: string;
+    alreadyProcessed: boolean;
+    wouldBeQueued: boolean;
+  }>;
+}
+
+export interface BackfillStatus {
+  cik: string;
+  historyImported: boolean;
+  queued: number;
+  completed: number;
+  failed: number;
+  total: number;
+  lastFiling?: {
+    accessionNumber: string;
+    queuedAt: string;
+    completedAt: string | null;
+    status: string;
+  };
 }
 
 // Alpaca Market API Client

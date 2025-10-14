@@ -1,0 +1,25 @@
+{
+  "name": "historical-importer",
+  "version": "1.0.0",
+  "description": "Historical Form 4 filings importer for SEC data",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "keywords": [
+    "sec",
+    "form4",
+    "historical",
+    "import"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "fast-xml-parser": "^4.3.2"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
