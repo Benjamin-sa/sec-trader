@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { signIn, signUp } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
 import { AuthView } from './AuthView';
@@ -15,7 +16,12 @@ export function AuthModal({ mode = 'signin', onClose }: { mode?: 'signin' | 'sig
   const [loading, setLoading] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     // Trigger animation on mount
@@ -72,16 +78,19 @@ export function AuthModal({ mode = 'signin', onClose }: { mode?: 'signin' | 'sig
     setError('');
   };
 
-  return (
+  // Don't render until mounted (client-side only)
+  if (!mounted) return null;
+
+  const modalContent = (
     <div 
-      className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-300 ${
+      className={`fixed inset-0 z-[100] flex items-center justify-center transition-all duration-300 ${
         isVisible && !isClosing ? 'opacity-100' : 'opacity-0'
       }`}
       onClick={handleClose}
     >
       {/* Backdrop with blur effect */}
       <div 
-        className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-all duration-300 ${
+        className={`absolute inset-0 bg-gradient-to-br from-gray-900/70 via-gray-900/60 to-blue-900/70 backdrop-blur-md transition-all duration-300 ${
           isVisible && !isClosing ? 'opacity-100' : 'opacity-0'
         }`}
       />
@@ -99,7 +108,7 @@ export function AuthModal({ mode = 'signin', onClose }: { mode?: 'signin' | 'sig
         {onClose && (
           <button
             onClick={handleClose}
-            className="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 transition-all duration-200 hover:rotate-90 group"
+            className="absolute top-4 right-4 z-[110] w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 backdrop-blur-md text-white hover:bg-white/20 hover:scale-110 transition-all duration-200 hover:rotate-90 group shadow-lg"
             aria-label="Close modal"
           >
             <X className="w-5 h-5 group-hover:scale-110 transition-transform" />
@@ -123,4 +132,7 @@ export function AuthModal({ mode = 'signin', onClose }: { mode?: 'signin' | 'sig
       </div>
     </div>
   );
+
+  // Render modal at document body level using portal
+  return createPortal(modalContent, document.body);
 }

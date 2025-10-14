@@ -130,7 +130,7 @@ export function ClickableInsider({
 
   return (
     <Link
-      href={`/insider?cik=${encodeURIComponent(cik)}`}
+      href={`/insider/${cik}`}
       className={`inline-flex items-center gap-1 text-gray-700 hover:text-blue-600 hover:underline transition-colors ${className}`}
       title={`View all trades for ${name}${title ? ` (${title})` : ''}`}
     >

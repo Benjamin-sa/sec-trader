@@ -6,6 +6,7 @@ import { cachedApiClient } from '../../lib/cached-api-client';
 import { Calendar, AlertTriangle, Crown, ChevronDown, ChevronUp } from 'lucide-react';
 import { ClickableCompany, ClickableInsider } from './ClickableLinks';
 import FilingLink from './FilingLink';
+import TransactionBadge from '@/components/TransactionBadge';
 
 export function ImportantTrades() {
   
@@ -251,9 +252,12 @@ export function ImportantTrades() {
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${importance.color}`}>
                             {importance.level}
                           </span>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${getTransactionTypeColor(trade.transaction_code, trade.acquired_disposed_code)}`}>
-                            {getTransactionTypeIcon(trade.acquired_disposed_code)}
-                          </span>
+                          <TransactionBadge
+                            transactionCode={trade.transaction_code}
+                            acquiredDisposedCode={trade.acquired_disposed_code}
+                            size="xs"
+                            showIcon={true}
+                          />
                         </div>
                         <div className="mb-1.5">
                           <ClickableCompany
@@ -413,9 +417,14 @@ export function ImportantTrades() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getTransactionTypeColor(trade.transaction_code, trade.acquired_disposed_code)}`}>
-                        {getTransactionTypeIcon(trade.acquired_disposed_code)} {trade.transaction_description}
-                      </span>
+                      <TransactionBadge
+                        transactionCode={trade.transaction_code}
+                        acquiredDisposedCode={trade.acquired_disposed_code}
+                        transactionDescription={trade.transaction_description}
+                        size="md"
+                        showIcon={true}
+                        showDescription={false}
+                      />
                       <div className="text-right">
                         <div className="text-2xl font-bold text-gray-900">
                           {formatCurrency(trade.transaction_value)}

@@ -8,13 +8,13 @@ import { useCurrencyFormatter, useNumberFormatter } from '@/hooks/useTranslation
 import { Calendar, Search, ExternalLink } from 'lucide-react';
 import { ClickableCompany, ClickableInsider } from './ClickableLinks';
 import FilingLink from './FilingLink';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import TransactionBadge from '@/components/TransactionBadge';
 
 export function TradesList() {
   const t = useTranslations();
   const currencyFormatter = useCurrencyFormatter();
   const numberFormatter = useNumberFormatter();
-  const router = useRouter();
   
   const [trades, setTrades] = useState<TradeData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,10 +105,6 @@ export function TradesList() {
 
   const getTransactionTypeIcon = (disposedCode: string) => {
     return disposedCode === 'A' ? '↗️' : '↘️';
-  };
-
-  const handleCardClick = (accessionNumber: string) => {
-    router.push(`/filing/${accessionNumber}`);
   };
 
   if (loading) {
@@ -256,18 +252,10 @@ export function TradesList() {
       ) : (
         <div className="space-y-3 sm:space-y-4">
           {trades.map((trade, index) => (
-            <div 
+            <Link 
               key={trade.transaction_id ? `tx-${trade.transaction_id}` : `trade-${index}-${trade.accession_number}-${trade.person_cik || 'unknown'}`} 
-              className="relative border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group"
-              onClick={() => handleCardClick(trade.accession_number)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  handleCardClick(trade.accession_number);
-                }
-              }}
+              href={`/filing/${trade.accession_number}`}
+              className="relative border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group block"
             >
               {/* Mobile: Badges at top, Desktop: Badges on right */}
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
@@ -278,9 +266,13 @@ export function TradesList() {
                     <ExternalLink className="h-4 w-4 text-gray-400" />
                   </div>
                   
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getTransactionTypeColor(trade.transaction_code)}`}>
-                    {getTransactionTypeIcon(trade.acquired_disposed_code)} {trade.transaction_code}
-                  </span>
+                  <TransactionBadge
+                    transactionCode={trade.transaction_code}
+                    acquiredDisposedCode={trade.acquired_disposed_code}
+                    transactionDescription={trade.transaction_description}
+                    size="sm"
+                    showIcon={true}
+                  />
                   {(trade.is_director || trade.is_officer) && (
                     <>
                       {trade.is_director && (
@@ -353,7 +345,7 @@ export function TradesList() {
                   </div>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

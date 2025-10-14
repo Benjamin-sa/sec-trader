@@ -5,8 +5,8 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { TradeData } from '@/lib/database';
 import { cachedApiClient } from '@/lib/cached-api-client';
 import { ArrowLeftIcon, UserIcon } from '@heroicons/react/24/outline';
-import FilingLink from '@/app/components/FilingLink';
 import HistoricalImportButton from '@/components/HistoricalImportButton';
+import TradesDisplay from '@/components/TradesDisplay';
 
 export default function InsiderPageClient() {
   const params = useParams();
@@ -146,88 +146,17 @@ export default function InsiderPageClient() {
               Recent Trades ({trades.length})
             </h2>
           </div>
-
-          {trades.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              No trades found for this insider.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Company
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Transaction
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Shares
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Price
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Value
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {trades.map((trade, index) => (
-                    <tr key={`${trade.accession_number}-${index}`} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div>
-                          <div className="font-medium">{formatDate(trade.transaction_date)}</div>
-                          <div className="text-gray-500 text-xs">Filed: <FilingLink accessionNumber={trade.accession_number} filedAt={trade.filed_at} /></div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {trade.issuer_name}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {trade.trading_symbol && (
-                              <span className="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded mr-1">
-                                {trade.trading_symbol}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div>
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            trade.acquired_disposed_code === 'A' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {trade.acquired_disposed_code === 'A' ? 'Buy' : 'Sell'}
-                          </span>
-                          <div className="text-gray-500 text-xs mt-1">
-                            {trade.security_title}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatShares(trade.shares_transacted)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {trade.price_per_share !== null ? `$${trade.price_per_share.toFixed(2)}` : 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {formatCurrency(trade.transaction_value)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <div className="p-6">
+            <TradesDisplay
+              trades={trades}
+              mode="comprehensive"
+              layout="table"
+              context="insider"
+              loading={loading}
+              emptyMessage="No trades found for this insider."
+              onTradeClick={(accessionNumber) => router.push(`/filing/${accessionNumber}`)}
+            />
+          </div>
         </div>
       </div>
     </div>

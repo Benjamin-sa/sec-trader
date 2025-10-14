@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { DocumentTextIcon } from '@heroicons/react/24/outline';
 
 interface FilingLinkProps {
@@ -19,8 +18,6 @@ export default function FilingLink({
   showIcon = false,
   label
 }: FilingLinkProps) {
-  const router = useRouter();
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -30,17 +27,8 @@ export default function FilingLink({
   };
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    // Only handle plain clicks (not ctrl/cmd/middle-click)
-    if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) {
-      return; // Let the default Link behavior handle it
-    }
-    
     // Prevent any parent handlers from interfering
     e.stopPropagation();
-    
-    // Use router for navigation
-    e.preventDefault();
-    router.push(`/filing/${accessionNumber}`);
   };
 
   return (

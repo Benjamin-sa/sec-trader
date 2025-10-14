@@ -69,7 +69,7 @@ export function AuthView({
 
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg ring-2 ring-white/30">
               <TrendingUp className="w-6 h-6 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-white">SEC Trader</h1>
@@ -88,12 +88,12 @@ export function AuthView({
             {features.map((feature, index) => (
               <div
                 key={index}
-                className="bg-white/10 backdrop-blur-sm rounded-xl p-4 transform transition-all duration-300 hover:bg-white/20 hover:scale-105"
+                className="bg-white/10 backdrop-blur-md rounded-xl p-4 transform transition-all duration-300 hover:bg-white/20 hover:scale-105 border border-white/10 shadow-lg hover:shadow-xl"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <feature.icon className="w-8 h-8 text-blue-200 mb-2" />
-                <h3 className="text-white font-semibold mb-1">{feature.title}</h3>
-                <p className="text-blue-100 text-sm">{feature.description}</p>
+                <h3 className="text-white font-bold mb-1">{feature.title}</h3>
+                <p className="text-blue-100 text-sm font-medium">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -105,10 +105,10 @@ export function AuthView({
       <div className="lg:w-1/2 bg-white p-8 lg:p-12 flex items-center justify-center">
         <div className="w-full max-w-md">
           <div className="mb-8">
-            <h3 className="text-3xl font-bold text-gray-900 mb-2">
+            <h3 className="text-3xl font-extrabold text-gray-900 mb-2">
               {isSignUp ? 'Create Account' : 'Sign In'}
             </h3>
-            <p className="text-gray-600">
+            <p className="text-gray-600 font-medium">
               {isSignUp 
                 ? 'Fill in your details to get started'
                 : 'Enter your credentials to continue'}
@@ -198,7 +198,7 @@ export function AuthView({
             </div>
 
             {error && (
-              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg animate-shake">
+              <div className="bg-gradient-to-r from-red-50 to-red-50/50 border-l-4 border-red-500 p-4 rounded-xl animate-shake shadow-sm">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
                     <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
@@ -206,7 +206,7 @@ export function AuthView({
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm text-red-700">{error}</p>
+                    <p className="text-sm font-semibold text-red-700">{error}</p>
                   </div>
                 </div>
               </div>
@@ -237,17 +237,17 @@ export function AuthView({
           <div className="mt-6 text-center">
             <button
               onClick={onToggleMode}
-              className="text-sm text-gray-600 hover:text-blue-600 transition-colors group"
+              className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-all duration-200 group"
             >
               {isSignUp ? (
                 <>
                   Already have an account?{' '}
-                  <span className="font-semibold text-blue-600 group-hover:underline">Sign in</span>
+                  <span className="font-bold text-blue-600 group-hover:underline">Sign in</span>
                 </>
               ) : (
                 <>
                   Don&apos;t have an account?{' '}
-                  <span className="font-semibold text-blue-600 group-hover:underline">Sign up</span>
+                  <span className="font-bold text-blue-600 group-hover:underline">Sign up</span>
                 </>
               )}
             </button>
@@ -257,7 +257,7 @@ export function AuthView({
             <div className="mt-4 text-center">
               <button
                 type="button"
-                className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                className="text-sm font-medium text-gray-500 hover:text-blue-600 transition-all duration-200 hover:underline"
               >
                 Forgot your password?
               </button>

@@ -63,6 +63,13 @@ export default {
           "https://*.pages.dev",
           "https://sec-frontend.benjamin-sautersb.workers.dev",
         ],
+        // Allow cookies to work in local development
+        advanced: {
+          cookieOptions: {
+            sameSite: env.BASE_URL?.includes('localhost') ? 'lax' : 'strict',
+            secure: !env.BASE_URL?.includes('localhost'),
+          },
+        },
       });
 
       // Handle auth request
