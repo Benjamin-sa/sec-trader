@@ -1,6 +1,13 @@
 import { betterAuth } from "better-auth";
 import { Kysely } from "kysely";
 import { D1Dialect } from "kysely-d1";
+import {
+  getUserAlertPreferences,
+  updateUserAlertPreferences,
+  sendTestNotification,
+  getUserNotificationStats,
+  updateWatchlist,
+} from "./alert-preferences.js";
 
 // CORS headers
 const corsHeaders = {
@@ -42,6 +49,8 @@ export default {
     }
 
     try {
+      const url = new URL(request.url);
+
       // Create Kysely instance with D1Dialect
       const db = new Kysely({
         dialect: new D1Dialect({
@@ -71,6 +80,11 @@ export default {
           },
         },
       });
+
+      // Handle custom alert preferences endpoints
+      if (url.pathname.startsWith('/api/alerts')) {
+        return await handleAlertPreferencesRequest(request, env, auth, dynamicCorsHeaders);
+      }
 
       // Handle auth request
       const response = await auth.handler(request);
@@ -107,3 +121,87 @@ export default {
     }
   },
 };
+
+/**
+ * Handle alert preferences API requests
+ */
+async function handleAlertPreferencesRequest(request, env, auth, corsHeaders) {
+  const url = new URL(request.url);
+
+  try {
+    // Get user session
+    const session = await auth.api.getSession({ headers: request.headers });
+    
+    if (!session?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const userId = session.user.id;
+
+    // GET /api/alerts/preferences - Get user preferences
+    if (url.pathname === '/api/alerts/preferences' && request.method === 'GET') {
+      const prefs = await getUserAlertPreferences(userId, env);
+      return new Response(JSON.stringify(prefs), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // PUT /api/alerts/preferences - Update preferences
+    if (url.pathname === '/api/alerts/preferences' && request.method === 'PUT') {
+      const body = await request.json();
+      const updated = await updateUserAlertPreferences(userId, body, env);
+      return new Response(JSON.stringify(updated), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // POST /api/alerts/test - Send test notification
+    if (url.pathname === '/api/alerts/test' && request.method === 'POST') {
+      const result = await sendTestNotification(userId, env);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // GET /api/alerts/stats - Get notification statistics
+    if (url.pathname === '/api/alerts/stats' && request.method === 'GET') {
+      const stats = await getUserNotificationStats(userId, env);
+      return new Response(JSON.stringify(stats), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // POST /api/alerts/watchlist - Add/remove from watchlist
+    if (url.pathname === '/api/alerts/watchlist' && request.method === 'POST') {
+      const body = await request.json();
+      const { action, companies } = body;
+      
+      if (!action || !companies || !Array.isArray(companies)) {
+        return new Response(JSON.stringify({ error: 'Invalid request' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const result = await updateWatchlist(userId, action, companies, env);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Not found
+    return new Response(JSON.stringify({ error: 'Not found' }), {
+      status: 404,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    console.error('Alert preferences error:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+}

@@ -58,7 +58,6 @@ export function Navigation() {
       icon: BellIcon, 
       iconSolid: BellIconSolid,
       description: t('nav.alertsDescription'),
-      soon: true,
       requiresAuth: true 
     },
   ];
@@ -148,28 +147,29 @@ export function Navigation() {
             </div>
           </div>
         </div>
+      </nav>
 
-        {/* Mobile Slide-out Menu */}
+      {/* Mobile Slide-out Menu - MOVED OUTSIDE NAV */}
+      <div
+        className={`
+          md:hidden fixed inset-0 z-[60] transition-opacity duration-300
+          ${mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+        `}
+      >
+        {/* Backdrop */}
+        <div
+          className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+
+        {/* Slide-out Panel */}
         <div
           className={`
-            md:hidden fixed inset-0 z-50 transition-opacity duration-300
-            ${mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+            fixed right-0 top-0 bottom-0 w-full max-w-sm bg-white/95 backdrop-blur-xl shadow-2xl
+            transform transition-transform duration-300 ease-out
+            ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}
           `}
         >
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-
-          {/* Slide-out Panel */}
-          <div
-            className={`
-              fixed right-0 top-0 bottom-0 w-full max-w-sm bg-white/95 backdrop-blur-xl shadow-2xl
-              transform transition-transform duration-300 ease-out
-              ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}
-            `}
-          >
             <div className="flex flex-col h-full">
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-200/60">
@@ -268,7 +268,6 @@ export function Navigation() {
             </div>
           </div>
         </div>
-      </nav>
 
       {/* Mobile Bottom Navigation (Alternative/Additional) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-gray-200/60 shadow-lg z-40 safe-area-bottom">

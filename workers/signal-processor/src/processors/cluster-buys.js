@@ -8,6 +8,8 @@
  * instead of on every API request.
  */
 
+import { queueClusterBuyNotifications } from '../services/notification-queue.js';
+
 /**
  * Process cluster buy signals
  *
@@ -197,6 +199,11 @@ export async function processClusterBuys(env, logger) {
           cluster.transaction_date,
           CLUSTER_WINDOW_DAYS
         );
+
+        // Step 5: Queue notifications for new or significantly updated clusters
+        if (!existing || (existing && signalStrength >= 70)) {
+          await queueClusterBuyNotifications(env, clusterId, logger);
+        }
 
         processedClusters++;
       } catch (error) {
