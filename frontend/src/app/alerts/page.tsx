@@ -13,7 +13,6 @@ import {
   UserGroupIcon,
   ArrowTrendingUpIcon,
   ClockIcon,
-  InformationCircleIcon,
   PlusIcon,
   XMarkIcon,
   SparklesIcon
@@ -64,7 +63,6 @@ export default function AlertsPage() {
   const [testingEmail, setTestingEmail] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [watchlistInput, setWatchlistInput] = useState('');
-  const [excludeInput, setExcludeInput] = useState('');
 
   useEffect(() => {
     if (!isPending && session?.user) {
@@ -243,10 +241,6 @@ export default function AlertsPage() {
 
   const watchlist = preferences?.watched_companies 
     ? preferences.watched_companies.split(',').filter(Boolean) 
-    : [];
-
-  const excludeList = preferences?.excluded_companies 
-    ? preferences.excluded_companies.split(',').filter(Boolean) 
     : [];
 
   return (

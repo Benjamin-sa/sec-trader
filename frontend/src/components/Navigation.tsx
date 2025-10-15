@@ -14,12 +14,14 @@ import {
   Bars3Icon,
   XMarkIcon,
   ChartBarIcon,
+  AcademicCapIcon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeIconSolid,
   MagnifyingGlassIcon as SearchIconSolid,
   BellIcon as BellIconSolid,
   BookmarkIcon as BookmarkIconSolid,
+  AcademicCapIcon as AcademicCapIconSolid,
 } from '@heroicons/react/24/solid';
 
 export function Navigation() {
@@ -59,6 +61,13 @@ export function Navigation() {
       iconSolid: BellIconSolid,
       description: t('nav.alertsDescription'),
       requiresAuth: true 
+    },
+    { 
+      name: t('nav.learn'), 
+      href: '/learn/insider-trading-guide', 
+      icon: AcademicCapIcon, 
+      iconSolid: AcademicCapIconSolid,
+      description: t('nav.learnDescription')
     },
   ];
 

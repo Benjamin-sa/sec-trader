@@ -9,13 +9,7 @@ import { TradeData } from '@/lib/database';
 import { cachedApiClient } from '@/lib/cached-api-client';
 import { 
   ArrowLeftIcon, 
-  DocumentTextIcon,
-  BuildingOfficeIcon,
-  UserIcon,
-  CalendarIcon,
-  CurrencyDollarIcon,
-  ArrowTopRightOnSquareIcon,
-  InformationCircleIcon
+  ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline';
 import {
   FileText,

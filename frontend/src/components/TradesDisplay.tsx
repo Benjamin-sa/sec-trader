@@ -65,7 +65,6 @@ export interface TradesDisplayProps {
   emptyMessage?: string;
   onTradeClick?: (accessionNumber: string) => void;
   maxItems?: number;
-  showImportanceFilter?: boolean;
 }
 
 /**
@@ -585,7 +584,6 @@ export default function TradesDisplay({
   emptyMessage = 'No trades found',
   onTradeClick,
   maxItems,
-  showImportanceFilter = false,
 }: TradesDisplayProps) {
   const router = useRouter();
   const displayTrades = maxItems ? trades.slice(0, maxItems) : trades;

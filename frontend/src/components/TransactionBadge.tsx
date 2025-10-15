@@ -23,7 +23,10 @@
  * - D: Disposed (shares decreased)
  */
 
+'use client';
+
 import React from 'react';
+import TransactionInfoModal from './TransactionInfoModal';
 
 export interface TransactionInfo {
   transactionCode: string;
@@ -38,6 +41,7 @@ export interface TransactionBadgeProps {
   size?: 'xs' | 'sm' | 'md' | 'lg';
   showIcon?: boolean;
   showDescription?: boolean;
+  showInfoModal?: boolean; // Enable the information modal
 }
 
 interface TransactionCategory {
@@ -184,7 +188,8 @@ export default function TransactionBadge({
   transactionDescription,
   size = 'sm',
   showIcon = true,
-  showDescription = false
+  showDescription = false,
+  showInfoModal = true
 }: TransactionBadgeProps) {
   const category = getTransactionCategory(transactionCode, acquiredDisposedCode);
 
@@ -195,16 +200,17 @@ export default function TransactionBadge({
     lg: 'px-4 py-2 text-base'
   };
 
-  return (
+  const badgeContent = (
     <div className="inline-flex flex-col items-start gap-1">
       <span
         className={`
           inline-flex items-center gap-1 font-bold uppercase tracking-wider rounded-full border shadow-sm
           transition-all duration-200 hover:shadow-md hover:scale-105
+          ${showInfoModal ? 'cursor-pointer' : 'cursor-help'}
           ${category.colorClass}
           ${sizeClasses[size]}
         `}
-        title={category.description}
+        title={showInfoModal ? 'Click for more info' : category.description}
       >
         {showIcon && <span className="leading-none">{category.icon}</span>}
         <span>{category.label}</span>
@@ -216,6 +222,20 @@ export default function TransactionBadge({
       )}
     </div>
   );
+
+  // Wrap with info modal if enabled
+  if (showInfoModal) {
+    return (
+      <TransactionInfoModal
+        transactionCode={transactionCode}
+        acquiredDisposedCode={acquiredDisposedCode}
+      >
+        {badgeContent}
+      </TransactionInfoModal>
+    );
+  }
+
+  return badgeContent;
 }
 
 /**
