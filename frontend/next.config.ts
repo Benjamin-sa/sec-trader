@@ -7,10 +7,7 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true
   },
-  // Fix the turbopack root directory warning
-  turbopack: {
-    root: '/home/benjamin/Documenten/ecom-trader'
-  }
+
 };
 
 export default nextConfig;

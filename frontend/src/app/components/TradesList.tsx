@@ -95,19 +95,6 @@ export function TradesList() {
     });
   };
 
-  const getTransactionTypeColor = (code: string) => {
-    switch (code) {
-      case 'P': return 'bg-green-100 text-green-800';
-      case 'S': return 'bg-red-100 text-red-800';
-      case 'A': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getTransactionTypeIcon = (disposedCode: string) => {
-    return disposedCode === 'A' ? '↗️' : '↘️';
-  };
-
   if (loading) {
     return (
       <div className="p-6">
@@ -267,13 +254,15 @@ export function TradesList() {
                     <ExternalLink className="h-4 w-4 text-blue-500" />
                   </div>
                   
-                  <TransactionBadge
-                    transactionCode={trade.transaction_code}
-                    acquiredDisposedCode={trade.acquired_disposed_code}
-                    transactionDescription={trade.transaction_description}
-                    size="sm"
-                    showIcon={true}
-                  />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <TransactionBadge
+                      transactionCode={trade.transaction_code}
+                      acquiredDisposedCode={trade.acquired_disposed_code}
+                      transactionDescription={trade.transaction_description}
+                      size="sm"
+                      showIcon={true}
+                    />
+                  </div>
                   {(trade.is_director || trade.is_officer) && (
                     <>
                       {trade.is_director && (

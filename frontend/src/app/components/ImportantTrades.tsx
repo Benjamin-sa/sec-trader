@@ -156,18 +156,6 @@ export function ImportantTrades() {
     return { level, color, reasons };
   };
 
-  const getTransactionTypeColor = (code: string, acquired: string) => {
-    if (acquired === 'A') {
-      return code === 'P' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800';
-    } else {
-      return code === 'S' ? 'bg-red-100 text-red-800' : 'bg-pink-100 text-pink-800';
-    }
-  };
-
-  const getTransactionTypeIcon = (disposedCode: string) => {
-    return disposedCode === 'A' ? '📈' : '📉';
-  };
-
   if (loading) {
     return (
       <div className="p-6">

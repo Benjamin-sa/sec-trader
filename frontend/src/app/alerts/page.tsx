@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useSession } from '@/lib/auth-client';
 import { 
   BellIcon, 
@@ -12,7 +13,6 @@ import {
   UserGroupIcon,
   ArrowTrendingUpIcon,
   ClockIcon,
-  InformationCircleIcon,
   PlusIcon,
   XMarkIcon,
   SparklesIcon
@@ -63,7 +63,6 @@ export default function AlertsPage() {
   const [testingEmail, setTestingEmail] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [watchlistInput, setWatchlistInput] = useState('');
-  const [excludeInput, setExcludeInput] = useState('');
 
   useEffect(() => {
     if (!isPending && session?.user) {
@@ -229,12 +228,12 @@ export default function AlertsPage() {
           <p className="text-gray-600 mb-6">
             Please sign in to manage your alert preferences and receive notifications about insider trading activity.
           </p>
-          <a
+          <Link
             href="/"
             className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             Go to Home
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -242,10 +241,6 @@ export default function AlertsPage() {
 
   const watchlist = preferences?.watched_companies 
     ? preferences.watched_companies.split(',').filter(Boolean) 
-    : [];
-
-  const excludeList = preferences?.excluded_companies 
-    ? preferences.excluded_companies.split(',').filter(Boolean) 
     : [];
 
   return (
