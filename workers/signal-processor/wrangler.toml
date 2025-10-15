@@ -5,7 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 # Scheduled worker - runs every 30 minutes
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["*/30 * * * *"]
 
 # Database binding
 [[d1_databases]]

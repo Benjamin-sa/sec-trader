@@ -95,46 +95,70 @@ export async function processImportantTrades(env, logger) {
     let processedTrades = 0;
     let importantTrades = 0;
 
-    // Step 3: Calculate scores and store important trades
+    // Step 3: Score all trades and filter to important ones
+    const tradesToStore = [];
     for (const trade of trades.results) {
       try {
-        // Calculate importance score
         const scores = calculateImportanceScore(trade);
         const totalScore = scores.total;
 
-        // Only store if above threshold
         if (totalScore >= MIN_IMPORTANCE_SCORE) {
-          // Check if this trade signal already exists
-          const existing = await env.DB.prepare(
-            `
-            SELECT id FROM important_trade_signals
-            WHERE transaction_id = ?
-          `
-          )
-            .bind(trade.transaction_id)
-            .first();
+          tradesToStore.push({ trade, scores, totalScore });
+          importantTrades++;
+        }
+        processedTrades++;
+      } catch (error) {
+        logger.error(`Failed to score trade ${trade.transaction_id}`, {
+          error: error.message,
+        });
+      }
+    }
 
-          if (existing) {
+    // Step 4: Batch check which trades already exist
+    if (tradesToStore.length > 0) {
+      const transactionIds = tradesToStore.map(t => t.trade.transaction_id).join(',');
+      const existing = await env.DB.prepare(
+        `
+        SELECT id, transaction_id 
+        FROM important_trade_signals
+        WHERE transaction_id IN (${transactionIds})
+      `
+      ).all();
+
+      const existingMap = new Map(
+        existing.results.map(e => [e.transaction_id, e.id])
+      );
+
+      // Step 5: Batch all updates and inserts
+      const BATCH_SIZE = 100; // Process 100 at a time
+      for (let i = 0; i < tradesToStore.length; i += BATCH_SIZE) {
+        const batch = tradesToStore.slice(i, i + BATCH_SIZE);
+        const statements = [];
+
+        for (const { trade, scores, totalScore } of batch) {
+          const existingId = existingMap.get(trade.transaction_id);
+
+          if (existingId) {
             // Update existing
-            await env.DB.prepare(
+            statements.push(
+              env.DB.prepare(
+                `
+                UPDATE important_trade_signals SET
+                  importance_score = ?,
+                  value_score = ?,
+                  direction_score = ?,
+                  role_score = ?,
+                  ownership_score = ?,
+                  cluster_score = ?,
+                  timing_score = ?,
+                  cluster_size = ?,
+                  is_purchase = ?,
+                  is_sale = ?,
+                  is_10b5_1_plan = ?,
+                  is_active = TRUE
+                WHERE id = ?
               `
-              UPDATE important_trade_signals SET
-                importance_score = ?,
-                value_score = ?,
-                direction_score = ?,
-                role_score = ?,
-                ownership_score = ?,
-                cluster_score = ?,
-                timing_score = ?,
-                cluster_size = ?,
-                is_purchase = ?,
-                is_sale = ?,
-                is_10b5_1_plan = ?,
-                is_active = TRUE
-              WHERE id = ?
-            `
-            )
-              .bind(
+              ).bind(
                 totalScore,
                 scores.value,
                 scores.direction,
@@ -146,22 +170,22 @@ export async function processImportantTrades(env, logger) {
                 trade.is_purchase,
                 trade.is_sale,
                 trade.is_10b5_1_plan,
-                existing.id
+                existingId
               )
-              .run();
+            );
           } else {
             // Insert new
-            await env.DB.prepare(
+            statements.push(
+              env.DB.prepare(
+                `
+                INSERT INTO important_trade_signals (
+                  transaction_id, filing_id,
+                  importance_score, value_score, direction_score, role_score,
+                  ownership_score, cluster_score, timing_score,
+                  cluster_size, is_purchase, is_sale, is_10b5_1_plan
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
               `
-              INSERT INTO important_trade_signals (
-                transaction_id, filing_id,
-                importance_score, value_score, direction_score, role_score,
-                ownership_score, cluster_score, timing_score,
-                cluster_size, is_purchase, is_sale, is_10b5_1_plan
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `
-            )
-              .bind(
+              ).bind(
                 trade.transaction_id,
                 trade.filing_id,
                 totalScore,
@@ -176,21 +200,22 @@ export async function processImportantTrades(env, logger) {
                 trade.is_sale,
                 trade.is_10b5_1_plan
               )
-              .run();
+            );
           }
-
-          importantTrades++;
         }
 
-        processedTrades++;
-      } catch (error) {
-        logger.error(`Failed to process trade ${trade.transaction_id}`, {
-          error: error.message,
-        });
+        // Execute batch
+        try {
+          await env.DB.batch(statements);
+        } catch (error) {
+          logger.error(`Failed to process batch starting at index ${i}`, {
+            error: error.message,
+          });
+        }
       }
     }
 
-    // Step 4: Clean up old inactive signals (keep 30 days of history)
+    // Step 6: Clean up old inactive signals (keep 30 days of history)
     const cleanup = await env.DB.prepare(
       `
       DELETE FROM important_trade_signals

@@ -103,117 +103,161 @@ export async function processClusterBuys(env, logger) {
     let newClusters = 0;
     let updatedClusters = 0;
 
-    // Step 3: Process each cluster
-    for (const cluster of clusters.results) {
+    // Step 3: Process clusters in batches to reduce API calls
+    const BATCH_SIZE = 50; // Process 50 clusters at a time
+    
+    for (let i = 0; i < clusters.results.length; i += BATCH_SIZE) {
+      const batch = clusters.results.slice(i, i + BATCH_SIZE);
+      
       try {
-        // Calculate signal strength (0-100)
-        const signalStrength = calculateSignalStrength(cluster);
-
-        // Check if this cluster already exists
-        const existing = await env.DB.prepare(
+        // First, check which clusters already exist (single query)
+        const issuerDatePairs = batch.map(c => `('${c.issuer_id}', '${c.transaction_date}')`).join(',');
+        const existingClusters = await env.DB.prepare(
           `
-          SELECT id FROM cluster_buy_signals
-          WHERE issuer_id = ? AND transaction_date = ?
+          SELECT id, issuer_id, transaction_date 
+          FROM cluster_buy_signals
+          WHERE (issuer_id, transaction_date) IN (${issuerDatePairs})
         `
-        )
-          .bind(cluster.issuer_id, cluster.transaction_date)
-          .first();
+        ).all();
 
-        let clusterId;
-
-        if (existing) {
-          // Update existing cluster
-          await env.DB.prepare(
-            `
-            UPDATE cluster_buy_signals SET
-              total_insiders = ?,
-              total_shares = ?,
-              total_value = ?,
-              signal_strength = ?,
-              avg_role_priority = ?,
-              has_ceo_buy = ?,
-              has_cfo_buy = ?,
-              has_ten_percent_owner = ?,
-              buy_window_start = ?,
-              buy_window_end = ?,
-              is_active = TRUE,
-              last_updated = datetime('now')
-            WHERE id = ?
-          `
-          )
-            .bind(
-              cluster.total_insiders,
-              cluster.total_shares,
-              cluster.total_value,
-              signalStrength,
-              cluster.avg_role_priority,
-              cluster.has_ceo_buy,
-              cluster.has_cfo_buy,
-              cluster.has_ten_percent_owner,
-              cluster.buy_window_start,
-              cluster.buy_window_end,
-              existing.id
-            )
-            .run();
-
-          clusterId = existing.id;
-          updatedClusters++;
-        } else {
-          // Insert new cluster
-          const result = await env.DB.prepare(
-            `
-            INSERT INTO cluster_buy_signals (
-              issuer_id, transaction_date,
-              total_insiders, total_shares, total_value,
-              signal_strength, avg_role_priority,
-              has_ceo_buy, has_cfo_buy, has_ten_percent_owner,
-              buy_window_start, buy_window_end
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `
-          )
-            .bind(
-              cluster.issuer_id,
-              cluster.transaction_date,
-              cluster.total_insiders,
-              cluster.total_shares,
-              cluster.total_value,
-              signalStrength,
-              cluster.avg_role_priority,
-              cluster.has_ceo_buy,
-              cluster.has_cfo_buy,
-              cluster.has_ten_percent_owner,
-              cluster.buy_window_start,
-              cluster.buy_window_end
-            )
-            .run();
-
-          clusterId = result.meta.last_row_id;
-          newClusters++;
-        }
-
-        // Step 4: Store individual trades for this cluster
-        await storeClusterTrades(
-          env,
-          clusterId,
-          cluster.issuer_id,
-          cluster.transaction_date,
-          CLUSTER_WINDOW_DAYS
+        const existingMap = new Map(
+          existingClusters.results.map(e => [`${e.issuer_id}_${e.transaction_date}`, e.id])
         );
 
-        // Step 5: Queue notifications for new or significantly updated clusters
-        if (!existing || (existing && signalStrength >= 70)) {
-          await queueClusterBuyNotifications(env, clusterId, logger);
+        // Prepare batch statements for updates and inserts
+        const statements = [];
+        const clusterOperations = []; // Track what we're doing for each cluster
+
+        for (const cluster of batch) {
+          const signalStrength = calculateSignalStrength(cluster);
+          const key = `${cluster.issuer_id}_${cluster.transaction_date}`;
+          const existingId = existingMap.get(key);
+
+          if (existingId) {
+            // Update existing cluster
+            statements.push(
+              env.DB.prepare(
+                `
+                UPDATE cluster_buy_signals SET
+                  total_insiders = ?,
+                  total_shares = ?,
+                  total_value = ?,
+                  signal_strength = ?,
+                  avg_role_priority = ?,
+                  has_ceo_buy = ?,
+                  has_cfo_buy = ?,
+                  has_ten_percent_owner = ?,
+                  buy_window_start = ?,
+                  buy_window_end = ?,
+                  is_active = TRUE,
+                  last_updated = datetime('now')
+                WHERE id = ?
+              `
+              ).bind(
+                cluster.total_insiders,
+                cluster.total_shares,
+                cluster.total_value,
+                signalStrength,
+                cluster.avg_role_priority,
+                cluster.has_ceo_buy,
+                cluster.has_cfo_buy,
+                cluster.has_ten_percent_owner,
+                cluster.buy_window_start,
+                cluster.buy_window_end,
+                existingId
+              )
+            );
+            clusterOperations.push({ 
+              clusterId: existingId, 
+              cluster, 
+              signalStrength, 
+              isNew: false 
+            });
+            updatedClusters++;
+          } else {
+            // Insert new cluster
+            statements.push(
+              env.DB.prepare(
+                `
+                INSERT INTO cluster_buy_signals (
+                  issuer_id, transaction_date,
+                  total_insiders, total_shares, total_value,
+                  signal_strength, avg_role_priority,
+                  has_ceo_buy, has_cfo_buy, has_ten_percent_owner,
+                  buy_window_start, buy_window_end
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `
+              ).bind(
+                cluster.issuer_id,
+                cluster.transaction_date,
+                cluster.total_insiders,
+                cluster.total_shares,
+                cluster.total_value,
+                signalStrength,
+                cluster.avg_role_priority,
+                cluster.has_ceo_buy,
+                cluster.has_cfo_buy,
+                cluster.has_ten_percent_owner,
+                cluster.buy_window_start,
+                cluster.buy_window_end
+              )
+            );
+            clusterOperations.push({ 
+              clusterId: null, // Will be determined after insert
+              cluster, 
+              signalStrength, 
+              isNew: true 
+            });
+            newClusters++;
+          }
         }
 
-        processedClusters++;
+        // Execute all updates/inserts in a single batch
+        const results = await env.DB.batch(statements);
+
+        // Step 4: Prepare cluster operations with IDs
+        // For new clusters, get their IDs from the batch results
+        for (let j = 0; j < clusterOperations.length; j++) {
+          const op = clusterOperations[j];
+          
+          if (op.isNew) {
+            // Get the ID from the batch result
+            op.clusterId = results[j].meta.last_row_id;
+          }
+        }
+
+        // Step 5: Batch delete old trades for all clusters
+        const deleteStatements = clusterOperations.map(op =>
+          env.DB.prepare('DELETE FROM cluster_buy_trades WHERE cluster_id = ?').bind(op.clusterId)
+        );
+        await env.DB.batch(deleteStatements);
+
+        // Step 6: Batch fetch all trades for all clusters in this batch
+        await storeClusterTradesBatch(env, clusterOperations, CLUSTER_WINDOW_DAYS);
+
+        // Step 7: Queue notifications for new or significantly updated clusters
+        const notificationPromises = [];
+        for (const op of clusterOperations) {
+          if (op.isNew || op.signalStrength >= 70) {
+            notificationPromises.push(queueClusterBuyNotifications(env, op.clusterId, logger));
+          }
+          processedClusters++;
+        }
+        
+        // Execute all notifications in parallel (they're independent)
+        if (notificationPromises.length > 0) {
+          await Promise.all(notificationPromises);
+        }
+
       } catch (error) {
         logger.error(
-          `Failed to process cluster for issuer ${cluster.issuer_id}`,
+          `Failed to process batch starting at index ${i}`,
           {
             error: error.message,
-            cluster,
+            stack: error.stack,
           }
         );
+        // Continue with next batch instead of failing entirely
       }
     }
 
@@ -310,28 +354,21 @@ function calculateSignalStrength(cluster) {
 }
 
 /**
- * Store individual trades that make up a cluster
+ * Store individual trades for multiple clusters in batch
+ * This dramatically reduces API calls by processing all clusters together
  */
-async function storeClusterTrades(
-  env,
-  clusterId,
-  issuerId,
-  transactionDate,
-  windowDays
-) {
-  // First, clear existing trades for this cluster
-  await env.DB.prepare(
-    `
-    DELETE FROM cluster_buy_trades WHERE cluster_id = ?
-  `
-  )
-    .bind(clusterId)
-    .run();
+async function storeClusterTradesBatch(env, clusterOperations, windowDays) {
+  if (clusterOperations.length === 0) return;
 
-  // Find all trades in the window
-  const trades = await env.DB.prepare(
-    `
+  // Build a single query to fetch trades for ALL clusters at once
+  const conditions = clusterOperations.map(op => 
+    `(f.issuer_id = '${op.cluster.issuer_id}' AND it.transaction_date BETWEEN date('${op.cluster.transaction_date}', '-${windowDays} days') AND date('${op.cluster.transaction_date}', '+${windowDays} days'))`
+  ).join(' OR ');
+
+  const tradesQuery = `
     SELECT 
+      f.issuer_id,
+      it.transaction_date,
       it.id as transaction_id,
       p.id as person_id,
       p.name as person_name,
@@ -346,42 +383,79 @@ async function storeClusterTrades(
     JOIN person_relationships pr ON f.id = pr.filing_id
     JOIN persons p ON pr.person_id = p.id
     WHERE f.status = 'completed'
-      AND f.issuer_id = ?
       AND it.acquired_disposed_code = 'A'
       AND it.transaction_code = 'P'
-      AND it.transaction_date BETWEEN date(?, '-${windowDays} days') AND date(?, '+${windowDays} days')
       AND it.shares_transacted > 0
       AND it.price_per_share IS NOT NULL
       AND it.price_per_share > 0
+      AND (${conditions})
     ORDER BY it.transaction_value DESC
-  `
-  )
-    .bind(issuerId, transactionDate, transactionDate)
-    .all();
+  `;
 
-  // Insert all trades
-  for (const trade of trades.results) {
-    await env.DB.prepare(
-      `
-      INSERT OR IGNORE INTO cluster_buy_trades (
-        cluster_id, transaction_id, person_id,
-        person_name, shares_transacted, price_per_share,
-        transaction_value, is_officer, is_director, officer_title
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `
-    )
-      .bind(
-        clusterId,
-        trade.transaction_id,
-        trade.person_id,
-        trade.person_name,
-        trade.shares_transacted,
-        trade.price_per_share,
-        trade.transaction_value,
-        trade.is_officer,
-        trade.is_director,
-        trade.officer_title
-      )
-      .run();
+  const allTrades = await env.DB.prepare(tradesQuery).all();
+
+  if (allTrades.results.length === 0) return;
+
+  // Group trades by cluster
+  const tradesByCluster = new Map();
+  
+  for (const trade of allTrades.results) {
+    // Find which cluster this trade belongs to
+    for (const op of clusterOperations) {
+      if (trade.issuer_id === op.cluster.issuer_id) {
+        // Check if trade is within the window
+        const tradeDate = new Date(trade.transaction_date);
+        const clusterDate = new Date(op.cluster.transaction_date);
+        const daysDiff = Math.abs((tradeDate - clusterDate) / (1000 * 60 * 60 * 24));
+        
+        if (daysDiff <= windowDays) {
+          if (!tradesByCluster.has(op.clusterId)) {
+            tradesByCluster.set(op.clusterId, []);
+          }
+          tradesByCluster.get(op.clusterId).push(trade);
+          break; // Trade assigned to this cluster
+        }
+      }
+    }
+  }
+
+  // Build all INSERT statements for all trades across all clusters
+  const insertStatements = [];
+  
+  for (const [clusterId, trades] of tradesByCluster) {
+    for (const trade of trades) {
+      insertStatements.push(
+        env.DB.prepare(
+          `
+          INSERT OR IGNORE INTO cluster_buy_trades (
+            cluster_id, transaction_id, person_id,
+            person_name, shares_transacted, price_per_share,
+            transaction_value, is_officer, is_director, officer_title
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `
+        ).bind(
+          clusterId,
+          trade.transaction_id,
+          trade.person_id,
+          trade.person_name,
+          trade.shares_transacted,
+          trade.price_per_share,
+          trade.transaction_value,
+          trade.is_officer,
+          trade.is_director,
+          trade.officer_title
+        )
+      );
+    }
+  }
+
+  // Execute all inserts in one batch (or multiple if needed due to size limits)
+  if (insertStatements.length > 0) {
+    // D1 batch limit is typically around 100 statements
+    const MAX_BATCH_SIZE = 100;
+    for (let i = 0; i < insertStatements.length; i += MAX_BATCH_SIZE) {
+      const batchSlice = insertStatements.slice(i, i + MAX_BATCH_SIZE);
+      await env.DB.batch(batchSlice);
+    }
   }
 }
