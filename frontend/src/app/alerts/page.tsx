@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useSession } from '@/lib/auth-client';
 import { 
   BellIcon, 
@@ -229,12 +230,12 @@ export default function AlertsPage() {
           <p className="text-gray-600 mb-6">
             Please sign in to manage your alert preferences and receive notifications about insider trading activity.
           </p>
-          <a
+          <Link
             href="/"
             className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             Go to Home
-          </a>
+          </Link>
         </div>
       </div>
     );

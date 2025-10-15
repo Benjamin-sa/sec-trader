@@ -1,6 +1,4 @@
 import { betterAuth } from "better-auth";
-import { Kysely } from "kysely";
-import { D1Dialect } from "kysely-d1";
 import {
   getUserAlertPreferences,
   updateUserAlertPreferences,
@@ -49,18 +47,12 @@ export default {
     }
 
     try {
-      const url = new URL(request.url);
-
-      // Create Kysely instance with D1Dialect
-      const db = new Kysely({
-        dialect: new D1Dialect({
-          database: env.DB,
-        }),
-      });
-
-      // Create Better Auth instance - pass Kysely directly
+      // Create Better Auth instance with D1 database adapter
       const auth = betterAuth({
-        database: db,
+        database: {
+          provider: "sqlite",
+          db: env.DB,
+        },
         emailAndPassword: {
           enabled: true,
           requireEmailVerification: false,
@@ -82,6 +74,7 @@ export default {
       });
 
       // Handle custom alert preferences endpoints
+      const url = new URL(request.url);
       if (url.pathname.startsWith('/api/alerts')) {
         return await handleAlertPreferencesRequest(request, env, auth, dynamicCorsHeaders);
       }
