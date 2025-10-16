@@ -267,27 +267,59 @@ class RestApiClient {
     return this.fetchApi<FilingResponse>(`/api/filing/${accessionNumber}`);
   }
 
-  async triggerInsiderBackfill(
+
+  /**
+   * Start insider backfill with real-time streaming updates
+   * Returns an EventSource for listening to progress events
+   */
+  createInsiderBackfillStream(
     cik: string,
     limit: number = 50,
-    test: boolean = false
-  ): Promise<ApiResponse<BackfillResponse>> {
-    const queryParams = this.buildQueryParams({ cik, limit, test } as ApiFilters & { limit?: number; test?: boolean });
+    onProgress?: (data: BackfillProgress) => void,
+    onComplete?: (data: BackfillResponse) => void,
+    onError?: (error: string) => void
+  ): EventSource {
+    const queryParams = this.buildQueryParams({ cik, limit } as ApiFilters & { limit?: number });
     const url = `${this.baseUrl}/api/insider/backfill${queryParams}`;
     
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-      },
+    const eventSource = new EventSource(url);
+
+    // Listen to different event types
+    eventSource.addEventListener('status', (event: MessageEvent) => {
+      const data = JSON.parse(event.data);
+      onProgress?.(data);
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Request failed: ${response.status}`);
-    }
+    eventSource.addEventListener('found', (event: MessageEvent) => {
+      const data = JSON.parse(event.data);
+      onProgress?.(data);
+    });
 
-    return response.json();
+    eventSource.addEventListener('progress', (event: MessageEvent) => {
+      const data = JSON.parse(event.data);
+      onProgress?.(data);
+    });
+
+    eventSource.addEventListener('complete', (event: MessageEvent) => {
+      const data = JSON.parse(event.data);
+      onComplete?.(data);
+      eventSource.close();
+    });
+
+    eventSource.addEventListener('error', (event: MessageEvent) => {
+      const data = JSON.parse(event.data);
+      onError?.(data.message || 'Import failed');
+      eventSource.close();
+    });
+
+    // Handle connection errors
+    eventSource.onerror = (error) => {
+      console.error('EventSource error:', error);
+      onError?.('Connection error during import');
+      eventSource.close();
+    };
+
+    return eventSource;
   }
 
   async getInsiderBackfillStatus(cik: string): Promise<ApiResponse<BackfillStatus>> {
@@ -296,17 +328,54 @@ class RestApiClient {
   }
 }
 
+export interface BackfillProgress {
+  message?: string;
+  phase?: string;
+  cik?: string;
+  totalFound?: number;
+  processed?: number;
+  skipped?: number;
+  errors?: number;
+  total?: number;
+  remaining?: number;
+  progress?: number;
+  totalFilings?: number;
+}
+
 export interface BackfillResponse {
   success?: boolean;
   test?: boolean;
   cik: string;
   totalFound: number;
+  processed?: number;
   queued?: number;
   skipped?: number;
   errors?: number;
+  duration?: number;
+  wouldBeProcessed?: number;
   wouldBeQueued?: number;
   wouldBeSkipped?: number;
   message: string;
+  details?: {
+    processedFilings?: Array<{
+      accessionNumber: string;
+      filingDate: string;
+    }>;
+    skippedFilings?: Array<{
+      accessionNumber: string;
+      filingDate: string;
+      reason: string;
+    }>;
+    failedFilings?: Array<{
+      accessionNumber?: string;
+      filingDate?: string;
+      error: string;
+    }>;
+  };
+  summary?: {
+    successRate: number;
+    avgTimePerFiling: number;
+  };
   filings?: Array<{
     accessionNumber: string;
     filingDate: string;

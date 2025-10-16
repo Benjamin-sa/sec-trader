@@ -65,7 +65,7 @@ export async function handleInsiderBackfill(request, env) {
 
   try {
     // Determine endpoint based on test flag
-    const endpoint = isTest ? "/test" : "/import";
+    const endpoint = isTest ? "/test" : "/import/stream"; // Use streaming endpoint
     const method = isTest ? "GET" : "POST";
 
     console.log(
@@ -81,7 +81,7 @@ export async function handleInsiderBackfill(request, env) {
         {
           method,
           headers: {
-            Accept: "application/json",
+            Accept: isTest ? "application/json" : "text/event-stream",
           },
         }
       );
@@ -92,7 +92,7 @@ export async function handleInsiderBackfill(request, env) {
       response = await fetch(importerUrl, {
         method,
         headers: {
-          Accept: "application/json",
+          Accept: isTest ? "application/json" : "text/event-stream",
         },
       });
     }
@@ -102,6 +102,20 @@ export async function handleInsiderBackfill(request, env) {
       throw new Error(
         errorData.error || `Historical importer returned ${response.status}`
       );
+    }
+
+    // For streaming responses, pass through directly
+    if (endpoint === "/import/stream") {
+      return new Response(response.body, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
+        },
+      });
     }
 
     const data = await response.json();

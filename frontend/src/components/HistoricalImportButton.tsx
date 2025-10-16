@@ -2,23 +2,26 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { ArrowPathIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
-import { apiClient, BackfillStatus } from '@/lib/api-client';
+import { apiClient, BackfillStatus, BackfillResponse, BackfillProgress } from '@/lib/api-client';
+import { cachedApiClient, invalidateAllTrades } from '@/lib/cached-api-client';
 
 interface HistoricalImportButtonProps {
   cik: string;
-  insiderName?: string;
+  insiderName?: string; 
   onImportComplete?: () => void;
 }
 
+//ignore-max-lines-per-function
 export default function HistoricalImportButton({ cik, onImportComplete }: HistoricalImportButtonProps) {
   const [isImporting, setIsImporting] = useState(false);
   const [status, setStatus] = useState<BackfillStatus | null>(null);
+  const [importResult, setImportResult] = useState<BackfillResponse | null>(null);
+  const [progress, setProgress] = useState<BackfillProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [hasHistoricalData, setHasHistoricalData] = useState(false);
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
-  const pollingInterval = useRef<NodeJS.Timeout | null>(null);
-  const initialQueuedCount = useRef<number>(0);
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   // Fetch initial status when component mounts
   useEffect(() => {
@@ -52,11 +55,12 @@ export default function HistoricalImportButton({ cik, onImportComplete }: Histor
     checkInitialStatus();
   }, [cik]);
 
-  // Cleanup polling on unmount
+  // Cleanup EventSource on unmount
   useEffect(() => {
+    const currentEventSource = eventSourceRef.current;
     return () => {
-      if (pollingInterval.current) {
-        clearInterval(pollingInterval.current);
+      if (currentEventSource) {
+        currentEventSource.close();
       }
     };
   }, []);
@@ -73,67 +77,75 @@ export default function HistoricalImportButton({ cik, onImportComplete }: Histor
     }
   };
 
-  const startPolling = () => {
-    // Poll every 2 seconds
-    pollingInterval.current = setInterval(async () => {
-      const currentStatus = await fetchStatus();
-      
-      if (currentStatus) {
-        // Stop polling if no more items are queued
-        if (currentStatus.queued === 0) {
-          if (pollingInterval.current) {
-            clearInterval(pollingInterval.current);
-            pollingInterval.current = null;
-          }
-          setIsImporting(false);
-          setShowSuccess(true);
-          setHasHistoricalData(true); // Mark that historical data now exists
-          
-          // Call onImportComplete callback
-          if (onImportComplete) {
-            onImportComplete();
-          }
-          
-          // Hide success message after 3 seconds
-          setTimeout(() => {
-            setShowSuccess(false);
-          }, 3000);
-        }
-      }
-    }, 2000);
-  };
-
   const handleImport = async () => {
     setIsImporting(true);
     setError(null);
     setShowSuccess(false);
+    setImportResult(null);
+    setProgress(null);
 
     try {
-      // Trigger the import (100 filings as default)
-      const result = await apiClient.triggerInsiderBackfill(cik, 100, false);
-      
-      if (result.data.queued && result.data.queued > 0) {
-        // Store initial queued count
-        initialQueuedCount.current = result.data.queued;
-        
-        // Start polling for progress
-        startPolling();
-      } else {
-        // Nothing to import
-        setIsImporting(false);
-        setError('No new filings to import. All available filings have been processed.');
+      // Close any existing connection
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
       }
+
+      // Start streaming import with real-time updates
+      const eventSource = apiClient.createInsiderBackfillStream(
+        cik,
+        100,
+        // onProgress
+        (progressData) => {
+          setProgress(progressData);
+        },
+        // onComplete
+        async (resultData) => {
+          setImportResult(resultData);
+          setIsImporting(false);
+          setShowSuccess(true);
+          setHasHistoricalData(true);
+          
+          // Invalidate cache for this CIK to show new filings
+          try {
+            // Invalidate CIK-specific caches
+            await cachedApiClient.invalidateCIK(cik);
+            
+            // Also invalidate all trade caches since new filings affect:
+            // - Latest trades feed
+            // - Important trades
+            // - Cluster buys
+            await invalidateAllTrades();
+            
+            console.info('Cache invalidated for CIK and all trades:', cik);
+          } catch (error) {
+            console.warn('Failed to invalidate cache:', error);
+          }
+          
+          // Update status
+          fetchStatus();
+          
+          // Call onImportComplete callback to refresh the page data
+          if (onImportComplete) {
+            onImportComplete();
+          }
+          
+          // Hide success message after 5 seconds
+          setTimeout(() => {
+            setShowSuccess(false);
+          }, 5000);
+        },
+        // onError
+        (errorMessage) => {
+          setError(errorMessage);
+          setIsImporting(false);
+        }
+      );
+
+      eventSourceRef.current = eventSource;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start import');
       setIsImporting(false);
     }
-  };
-
-  // Calculate progress percentage
-  const getProgress = () => {
-    if (!status || initialQueuedCount.current === 0) return 0;
-    const processed = initialQueuedCount.current - status.queued;
-    return Math.min(100, Math.round((processed / initialQueuedCount.current) * 100));
   };
 
   return (
@@ -175,70 +187,166 @@ export default function HistoricalImportButton({ cik, onImportComplete }: Histor
       )}
 
       {isImporting && (
-        <div className="inline-flex flex-col gap-3 min-w-[300px] p-4 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 border border-blue-200/60 rounded-xl shadow-sm">
+        <div className="inline-flex flex-col gap-3 min-w-[320px] p-4 bg-gradient-to-br from-blue-50/50 to-indigo-50/30 border border-blue-200/60 rounded-xl shadow-sm">
           {/* Progress Header */}
           <div className="flex items-center gap-3">
             <ArrowPathIcon className="h-5 w-5 text-blue-600 animate-spin" />
             <div className="flex-1">
               <div className="text-sm font-bold text-gray-900">
-                Importing Historical Filings...
+                {progress?.phase === 'init' && 'Initializing...'}
+                {progress?.phase === 'fetching' && 'Fetching filings from SEC...'}
+                {progress?.phase === 'processing' && 'Processing filings...'}
+                {!progress && 'Starting import...'}
               </div>
-              <div className="text-xs text-gray-600 font-medium">
-                {status && (
-                  <>
-                    {initialQueuedCount.current - status.queued} of {initialQueuedCount.current} processed
-                  </>
-                )}
-              </div>
+              {progress?.message && (
+                <div className="text-xs text-gray-600 font-medium">
+                  {progress.message}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Progress Bar */}
-          <div className="w-full bg-gray-200/60 rounded-full h-3 overflow-hidden shadow-inner">
-            <div
-              className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-500 ease-out rounded-full shadow-sm"
-              style={{ width: `${getProgress()}%` }}
-            />
-          </div>
-
-          {/* Progress Percentage */}
-          <div className="text-right">
-            <span className="text-sm font-extrabold text-blue-600">{getProgress()}%</span>
-          </div>
-
-          {/* Status Breakdown */}
-          {status && (
-            <div className="flex gap-4 text-xs text-gray-600 mt-1">
-              <div>
-                <span className="font-bold text-emerald-600">{status.completed}</span> completed
+          {/* Progress Stats */}
+          {progress && progress.total && progress.total > 0 && (
+            <>
+              {/* Progress Bar */}
+              <div className="w-full bg-gray-200/60 rounded-full h-3 overflow-hidden shadow-inner">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300 ease-out rounded-full shadow-sm"
+                  style={{ width: `${progress.progress || 0}%` }}
+                />
               </div>
-              <div>
-                <span className="font-bold text-amber-600">{status.queued}</span> queued
+
+              {/* Progress Details */}
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex gap-3 text-gray-600">
+                  <span>
+                    <span className="font-bold text-emerald-600">{progress.processed || 0}</span> processed
+                  </span>
+                  <span>
+                    <span className="font-bold text-gray-500">{progress.skipped || 0}</span> skipped
+                  </span>
+                  {progress.errors && progress.errors > 0 && (
+                    <span>
+                      <span className="font-bold text-red-600">{progress.errors}</span> errors
+                    </span>
+                  )}
+                </div>
+                <span className="text-sm font-extrabold text-blue-600">
+                  {progress.progress || 0}%
+                </span>
               </div>
-              {status.failed > 0 && (
-                <div>
-                  <span className="font-bold text-red-600">{status.failed}</span> failed
+
+              {/* Remaining count */}
+              {progress.remaining !== undefined && progress.remaining > 0 && (
+                <div className="text-xs text-gray-500 font-medium text-center pt-1 border-t border-blue-100">
+                  {progress.remaining} remaining
                 </div>
               )}
+            </>
+          )}
+
+          {/* Initial found message */}
+          {progress?.totalFound && !progress.total && (
+            <div className="text-xs text-gray-600 font-medium">
+              Found {progress.totalFound} filings to process
             </div>
           )}
         </div>
       )}
 
-      {showSuccess && (
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200/60 text-emerald-800 rounded-xl text-sm shadow-sm animate-fade-in">
-          <CheckCircleIcon className="h-5 w-5 text-emerald-600" />
-          <span className="font-bold">Import Complete!</span>
+      {showSuccess && importResult && (
+        <div className="inline-flex flex-col gap-3 p-4 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200/60 rounded-xl shadow-lg animate-fade-in max-w-md">
+          {/* Success Header */}
+          <div className="flex items-center gap-2">
+            <CheckCircleIcon className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+            <span className="font-bold text-emerald-800">Import Complete!</span>
+          </div>
+          
+          {/* Summary Stats */}
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="bg-white/60 rounded-lg p-2 border border-emerald-100">
+              <div className="text-2xl font-extrabold text-emerald-600">
+                {importResult.processed || 0}
+              </div>
+              <div className="text-xs text-gray-600 font-medium">Processed</div>
+            </div>
+            <div className="bg-white/60 rounded-lg p-2 border border-gray-100">
+              <div className="text-2xl font-extrabold text-gray-600">
+                {importResult.skipped || 0}
+              </div>
+              <div className="text-xs text-gray-600 font-medium">Skipped</div>
+            </div>
+            {importResult.errors !== undefined && importResult.errors > 0 && (
+              <div className="bg-white/60 rounded-lg p-2 border border-red-100">
+                <div className="text-2xl font-extrabold text-red-600">
+                  {importResult.errors}
+                </div>
+                <div className="text-xs text-gray-600 font-medium">Errors</div>
+              </div>
+            )}
+          </div>
+
+          {/* Detailed Info */}
+          {importResult.summary && (
+            <div className="flex items-center justify-between text-xs pt-2 border-t border-emerald-100">
+              <div className="flex items-center gap-1">
+                <span className="text-gray-600">Success Rate:</span>
+                <span className="font-bold text-emerald-700">
+                  {importResult.summary.successRate}%
+                </span>
+              </div>
+              {importResult.duration && (
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-600">Duration:</span>
+                  <span className="font-bold text-gray-700">
+                    {importResult.duration}s
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Message */}
+          {importResult.message && (
+            <div className="text-xs text-gray-600 font-medium pt-1 border-t border-emerald-100">
+              {importResult.message}
+            </div>
+          )}
         </div>
       )}
 
       {error && !isImporting && (
-        <div className="absolute top-full left-0 right-0 mt-2 p-3 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200/60 rounded-xl text-sm text-red-800 shadow-lg z-10">
+        <div className="absolute top-full left-0 right-0 mt-2 p-3 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200/60 rounded-xl text-sm shadow-lg z-10 max-w-md">
           <div className="flex items-start gap-2">
             <XCircleIcon className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <div className="font-bold">Import Failed</div>
-              <div className="text-xs mt-1 font-medium">{error}</div>
+            <div className="flex-1">
+              <div className="font-bold text-red-800">Import Failed</div>
+              <div className="text-xs mt-1 font-medium text-red-700">{error}</div>
+              
+              {/* Show partial results if available */}
+              {importResult && (importResult.processed || importResult.skipped || importResult.errors) && (
+                <div className="mt-2 pt-2 border-t border-red-200">
+                  <div className="text-xs font-medium text-gray-700 mb-1">Partial Results:</div>
+                  <div className="flex gap-3 text-xs">
+                    {importResult.processed && importResult.processed > 0 && (
+                      <span className="text-emerald-700">
+                        ✓ {importResult.processed} processed
+                      </span>
+                    )}
+                    {importResult.skipped && importResult.skipped > 0 && (
+                      <span className="text-gray-600">
+                        ⊘ {importResult.skipped} skipped
+                      </span>
+                    )}
+                    {importResult.errors && importResult.errors > 0 && (
+                      <span className="text-red-600">
+                        ✗ {importResult.errors} failed
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

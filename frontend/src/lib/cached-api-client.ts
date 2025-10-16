@@ -221,6 +221,13 @@ export class CachedRestApiClient {
   }
 
   /**
+   * Invalidate all caches (nuclear option - use after bulk imports)
+   */
+  async invalidateAll(): Promise<void> {
+    await cache.clear('api');
+  }
+
+  /**
    * Invalidate company-specific cache
    */
   async invalidateCompany(identifier: string): Promise<void> {
@@ -232,6 +239,17 @@ export class CachedRestApiClient {
    */
   async invalidateInsider(cik: string): Promise<void> {
     await cache.invalidatePattern(`trades-insider.*${cik}.*`, 'api');
+  }
+
+  /**
+   * Invalidate caches related to a CIK (both as company and insider)
+   * Useful after historical imports
+   */
+  async invalidateCIK(cik: string): Promise<void> {
+    await Promise.all([
+      cache.invalidatePattern(`trades-insider.*${cik}.*`, 'api'),
+      cache.invalidatePattern(`trades-company.*${cik}.*`, 'api'),
+    ]);
   }
 
   /**
@@ -351,6 +369,14 @@ export const cachedAlpacaClient = new CachedAlpacaApiClient();
  */
 export async function clearAllCaches(): Promise<void> {
   await cache.clear();
+}
+
+/**
+ * Invalidate all trade-related caches across the application
+ * Useful after bulk imports that may affect multiple entities
+ */
+export async function invalidateAllTrades(): Promise<void> {
+  await cache.invalidateByTag('trades');
 }
 
 /**

@@ -8,10 +8,10 @@ binding = "DB"
 database_name = "sec_filings"
 database_id = "becbe21b-9435-4df7-80da-3df9ed7f1b96"
 
-# Queue for processing tasks (producer only)
-[[queues.producers]]
-binding = "filing_processing_queue"
-queue = "filing-processing-queue"
+# Service binding to form4-processor for direct processing
+[[services]]
+binding = "FORM4_PROCESSOR"
+service = "form4-processor"
 
 [observability.logs]
 enabled = true

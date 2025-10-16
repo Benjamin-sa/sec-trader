@@ -103,8 +103,16 @@ export default function InsiderPageClient() {
                       insiderName={insiderName}
                       onImportComplete={async () => {
                         // Refresh trades after import completes
+                        // Cache is already invalidated by the button component
+                        // Force a fresh fetch with forceRefresh option
                         try {
-                          const result = await cachedApiClient.getTradesByInsider(cik, undefined, 100);
+                          const result = await cachedApiClient.getTradesByInsider(
+                            cik, 
+                            undefined, 
+                            100, 
+                            undefined,
+                            { forceRefresh: true }
+                          );
                           setTrades(result);
                         } catch (err) {
                           console.error('Failed to refresh trades:', err);
