@@ -272,5 +272,14 @@
   },
   "footer": {
     "copyright": "© {year} SEC Insider Trading Analyzer. All rights reserved."
+  },
+  "pagination": {
+    "previous": "Previous",
+    "next": "Next",
+    "showing": "Showing",
+    "of": "of",
+    "pages": "pages",
+    "page": "Page",
+    "goToPage": "Go to page"
   }
 }

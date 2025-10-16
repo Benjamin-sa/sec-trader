@@ -8,6 +8,36 @@ export interface ApiResponse<T> {
   data: T;
   count: number;
   timestamp: string;
+  pagination?: PaginationMetadata;
+  query_info?: {
+    filters_applied: number;
+    total_params: number;
+    limit_applied: number;
+    count_source?: string;
+  };
+}
+
+export interface PaginationMetadata {
+  page: number;
+  limit: number;
+  offset: number;
+  total_count: number;
+  total_pages: number;
+  has_next_page: boolean;
+  has_prev_page: boolean;
+  next_page: number | null;
+  prev_page: number | null;
+}
+
+export interface PaginatedResponse<T> {
+  data: T;
+  pagination: PaginationMetadata;
+  query_info?: {
+    filters_applied: number;
+    total_params: number;
+    limit_applied: number;
+    count_source?: string;
+  };
 }
 
 export interface TradeData {
@@ -45,6 +75,26 @@ export interface TradeData {
   is_10b5_1_plan?: number | boolean;
 }
 
+export interface FilingData {
+  accession_number: string;
+  filed_at: string;
+  form_type: string;
+  issuer_cik: string;
+  issuer_name: string;
+  trading_symbol: string | null;
+  person_cik: string;
+  person_name: string;
+  transaction_count: number;
+  total_value: number;
+  total_shares: number;
+}
+
+export interface FilingResponse {
+  filing: FilingData;
+  trades: TradeData[];
+  count: number;
+}
+
 export interface ClusterBuy {
   issuer_name: string;
   trading_symbol: string | null;
@@ -68,6 +118,7 @@ export interface ApiFilters {
   min_shares?: number;
   start_date?: string;
   end_date?: string;
+  page?: number;
 }
 
 export interface MarketSnapshot {
@@ -120,9 +171,51 @@ class RestApiClient {
     }
   }
 
+  private async fetchApiWithPagination<T>(endpoint: string, queryParams: string = ''): Promise<PaginatedResponse<T>> {
+    const url = `${this.baseUrl}${endpoint}${queryParams}`;
+    
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      }
+
+      const apiResponse: ApiResponse<T> = await response.json();
+      
+      return {
+        data: apiResponse.data,
+        pagination: apiResponse.pagination || {
+          page: 1,
+          limit: 25,
+          offset: 0,
+          total_count: Array.isArray(apiResponse.data) ? apiResponse.data.length : 0,
+          total_pages: 1,
+          has_next_page: false,
+          has_prev_page: false,
+          next_page: null,
+          prev_page: null,
+        },
+        query_info: apiResponse.query_info
+      };
+    } catch (error) {
+      console.error(`Error fetching ${endpoint}:`, error);
+      throw error;
+    }
+  }
+
   async getLatestTrades(limit: number = 50, filters?: ApiFilters): Promise<TradeData[]> {
     const queryParams = this.buildQueryParams({ ...filters, limit });
     return this.fetchApi<TradeData[]>('/api/trades/latest', queryParams);
+  }
+
+  async getLatestTradesWithPagination(limit: number = 25, filters?: ApiFilters): Promise<PaginatedResponse<TradeData[]>> {
+    const queryParams = this.buildQueryParams({ ...filters, limit });
+    return this.fetchApiWithPagination<TradeData[]>('/api/trades/latest', queryParams);
   }
 
   async getImportantTrades(limit: number = 50): Promise<TradeData[]> {
@@ -165,6 +258,13 @@ class RestApiClient {
       ...filters,
     } as ApiFilters & { cik?: string; name?: string; limit?: number });
     return this.fetchApi<TradeData[]>('/api/trades/insider', queryParams);
+  }
+
+  async getFilingByAccessionNumber(accessionNumber: string): Promise<FilingResponse> {
+    if (!accessionNumber) {
+      throw new Error('Accession number is required');
+    }
+    return this.fetchApi<FilingResponse>(`/api/filing/${accessionNumber}`);
   }
 
   async triggerInsiderBackfill(

@@ -26,7 +26,7 @@ export class DatabaseService {
     }
   }
 
-  async getLatestTrades(whereClause, params, limit) {
+  async getLatestTrades(whereClause, params, limit, offset = 0) {
     const sql = `
       SELECT 
         accession_number,
@@ -54,10 +54,33 @@ export class DatabaseService {
       FROM vw_insider_trades_detailed
       ${whereClause}
       ORDER BY filed_at DESC, transaction_date DESC
-      LIMIT ?
+      LIMIT ? OFFSET ?
     `;
 
-    return this.executeQuery(sql, [...params, limit]);
+    return this.executeQuery(sql, [...params, limit, offset]);
+  }
+
+  async getLatestTradesCount(whereClause, params, hasFilters = false) {
+    // For unfiltered queries, use sqlite_sequence for instant count
+    if (!hasFilters) {
+      console.log("No filters applied, using sqlite_sequence for instant count");
+      
+      const sequenceResult = await this.executeQuery(`
+        SELECT seq FROM sqlite_sequence WHERE name = 'insider_transactions'
+      `);
+      
+      return sequenceResult[0]?.seq || 0;
+    }
+    
+    // For filtered queries, we need the accurate count of matching records
+    const sql = `
+      SELECT COUNT(*) as total_count
+      FROM vw_insider_trades_detailed
+      ${whereClause}
+    `;
+
+    const result = await this.executeQuery(sql, params);
+    return result[0]?.total_count || 0;
   }
 
   async getClusterBuysForIssuer(issuerName, transactionDate) {

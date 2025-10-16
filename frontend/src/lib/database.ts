@@ -1,7 +1,6 @@
 // Database utility for connecting to REST API with caching
-import { apiClient } from './api-client';
+import { apiClient, type TradeData, type ClusterBuy, type ApiFilters } from './api-client';
 import { cachedApiClient } from './cached-api-client';
-import type { TradeData, ClusterBuy, ApiFilters } from './api-client';
 
 // Re-export types for convenience
 export type { TradeData, ClusterBuy };

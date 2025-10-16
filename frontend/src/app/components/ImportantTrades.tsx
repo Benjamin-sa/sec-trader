@@ -243,6 +243,7 @@ export function ImportantTrades() {
                           <TransactionBadge
                             transactionCode={trade.transaction_code}
                             acquiredDisposedCode={trade.acquired_disposed_code}
+                            is10b51Plan={trade.is_10b5_1_plan}
                             size="xs"
                             showIcon={true}
                           />
@@ -409,6 +410,7 @@ export function ImportantTrades() {
                         transactionCode={trade.transaction_code}
                         acquiredDisposedCode={trade.acquired_disposed_code}
                         transactionDescription={trade.transaction_description}
+                        is10b51Plan={trade.is_10b5_1_plan}
                         size="md"
                         showIcon={true}
                         showDescription={false}

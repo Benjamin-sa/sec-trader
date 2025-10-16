@@ -1,3 +1,8 @@
+-- AUTH TABLES REMOVED
+-- These tables have been removed to disable authentication
+-- Uncomment and re-run migration when ready to implement new auth system
+
+/*
 -- Minimal Better Auth tables for user authentication
 -- Only includes core authentication functionality
 
@@ -46,3 +51,4 @@ CREATE TABLE IF NOT EXISTS verification (
 );
 
 CREATE INDEX idx_verification_identifier ON verification(identifier);
+*/

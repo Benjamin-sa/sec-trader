@@ -230,7 +230,9 @@ SELECT
     it.price_per_share,
     it.transaction_value,
     it.shares_owned_following,
-    it.direct_or_indirect
+    it.direct_or_indirect,
+    it.is_10b5_1_plan,
+    it.id AS transaction_id
 FROM important_trade_signals its
 JOIN insider_transactions it ON its.transaction_id = it.id
 JOIN filings f ON its.filing_id = f.id
@@ -239,3 +241,45 @@ JOIN issuers i ON f.issuer_id = i.id
 JOIN person_relationships pr ON f.id = pr.filing_id
 JOIN persons p ON pr.person_id = p.id
 WHERE its.is_active = TRUE;
+
+-- -----------------------------------------------------------------------------
+-- FIX FOR EXISTING VIEW
+-- -----------------------------------------------------------------------------
+
+-- Update the existing vw_insider_trades_detailed view to include missing columns
+DROP VIEW IF EXISTS vw_insider_trades_detailed;
+
+CREATE VIEW vw_insider_trades_detailed AS
+SELECT
+    f.accession_number,
+    f.filed_at,
+    ft.type_code AS form_type,
+    i.cik AS issuer_cik,
+    i.name AS issuer_name,
+    i.trading_symbol,
+    p.cik AS person_cik,
+    p.name AS person_name,
+    pr.is_director,
+    pr.is_officer,
+    pr.officer_title,
+    pr.is_ten_percent_owner,
+    it.transaction_date,
+    it.security_title,
+    it.transaction_code,
+    tc.description AS transaction_description,
+    it.acquired_disposed_code,
+    it.shares_transacted,
+    it.price_per_share,
+    it.transaction_value,
+    it.shares_owned_following,
+    it.direct_or_indirect,
+    it.is_10b5_1_plan,
+    it.id AS transaction_id
+FROM filings f
+JOIN filing_types ft ON f.filing_type_id = ft.id
+JOIN issuers i ON f.issuer_id = i.id
+JOIN person_relationships pr ON f.id = pr.filing_id
+JOIN persons p ON pr.person_id = p.id
+JOIN insider_transactions it ON f.id = it.filing_id
+LEFT JOIN transaction_codes tc ON it.transaction_code = tc.code
+WHERE ft.category = 'insider_trading';

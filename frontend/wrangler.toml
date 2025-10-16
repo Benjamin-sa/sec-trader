@@ -3,9 +3,14 @@ compatibility_date = "2025-03-25"
 compatibility_flags = ["nodejs_compat"]
 main = ".open-next/worker.js"
 
-[vars]
+# Environment configuration for Cloudflare Pages
+[env.production.vars]
+ENVIRONMENT = "production"
 NEXT_PUBLIC_API_URL = "https://api-server.benjamin-sautersb.workers.dev"
-NEXT_PUBLIC_AUTH_URL = "https://auth-worker.benjamin-sautersb.workers.dev"
+NEXT_PUBLIC_ALPACA_API_URL = "https://alpaca-market.benjamin-sautersb.workers.dev"
+
+# AUTH DISABLED
+# NEXT_PUBLIC_AUTH_URL = "https://auth-worker.benjamin-sautersb.workers.dev"
 
 [assets]
 directory = ".open-next/assets"

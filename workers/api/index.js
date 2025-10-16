@@ -20,6 +20,7 @@ import { handleImportantTrades } from "./handlers/important-trades.js";
 import { handleClusterBuys } from "./handlers/cluster-buys.js";
 import { handleTradesByCompany } from "./handlers/company-trades.js";
 import { handleTradesByInsider } from "./handlers/insider-trades.js";
+import { handleFilingByAccessionNumber } from "./handlers/filing.js";
 import {
   handleInsiderBackfill,
   handleInsiderBackfillStatus,
@@ -59,6 +60,11 @@ async function routeRequest(pathname, request, env) {
     [API_ROUTES.TRADES_BY_INSIDER]: handleTradesByInsider,
     [API_ROUTES.INSIDER_BACKFILL]: handleInsiderBackfill,
   };
+
+  // Special handling for filing endpoint with dynamic accession number
+  if (pathname.startsWith("/api/filing/")) {
+    return await handleFilingByAccessionNumber(request, env);
+  }
 
   // Special handling for status endpoint (GET only)
   if (pathname === "/api/insider/backfill/status" && request.method === "GET") {

@@ -2,32 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { signIn, signUp } from '@/lib/auth-client';
-import { useRouter } from 'next/navigation';
-import { AuthView } from './AuthView';
 import { X } from 'lucide-react';
 
-export function AuthModal({ mode = 'signin', onClose }: { mode?: 'signin' | 'signup'; onClose?: () => void }) {
-  const [isSignUp, setIsSignUp] = useState(mode === 'signup');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
+export function AuthModal({ mode: _mode, onClose }: { mode?: 'signin' | 'signup'; onClose?: () => void }) {
   const [mounted, setMounted] = useState(false);
-  const router = useRouter();
+  const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    // Trigger animation on mount
     setTimeout(() => setIsVisible(true), 10);
-    
-    // Prevent body scroll when modal is open
     document.body.style.overflow = 'hidden';
     
     return () => {
@@ -36,46 +19,7 @@ export function AuthModal({ mode = 'signin', onClose }: { mode?: 'signin' | 'sig
   }, []);
 
   const handleClose = () => {
-    setIsClosing(true);
-    setTimeout(() => {
-      onClose?.();
-    }, 300);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      if (isSignUp) {
-        await signUp.email({
-          email,
-          password,
-          name,
-        });
-        // Success - user created
-        handleClose();
-        setTimeout(() => router.refresh(), 300);
-      } else {
-        await signIn.email({
-          email,
-          password,
-        });
-        // Success - signed in
-        handleClose();
-        setTimeout(() => router.refresh(), 300);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleToggleMode = () => {
-    setIsSignUp(!isSignUp);
-    setError('');
+    onClose?.();
   };
 
   // Don't render until mounted (client-side only)
@@ -84,23 +28,17 @@ export function AuthModal({ mode = 'signin', onClose }: { mode?: 'signin' | 'sig
   const modalContent = (
     <div 
       className={`fixed inset-0 z-[100] flex items-center justify-center transition-all duration-300 ${
-        isVisible && !isClosing ? 'opacity-100' : 'opacity-0'
+        isVisible ? 'opacity-100' : 'opacity-0'
       }`}
       onClick={handleClose}
     >
-      {/* Backdrop with blur effect */}
-      <div 
-        className={`absolute inset-0 bg-gradient-to-br from-gray-900/70 via-gray-900/60 to-blue-900/70 backdrop-blur-md transition-all duration-300 ${
-          isVisible && !isClosing ? 'opacity-100' : 'opacity-0'
-        }`}
-      />
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-900/70 via-gray-900/60 to-blue-900/70 backdrop-blur-md" />
       
       {/* Modal container */}
       <div 
-        className={`relative w-full h-full lg:h-auto lg:max-w-6xl lg:rounded-2xl overflow-hidden shadow-2xl transform transition-all duration-500 ${
-          isVisible && !isClosing 
-            ? 'scale-100 opacity-100 translate-y-0' 
-            : 'scale-95 opacity-0 translate-y-8'
+        className={`relative w-full max-w-md mx-4 bg-white rounded-2xl shadow-2xl p-8 text-center transition-all duration-500 ${
+          isVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -108,31 +46,37 @@ export function AuthModal({ mode = 'signin', onClose }: { mode?: 'signin' | 'sig
         {onClose && (
           <button
             onClick={handleClose}
-            className="absolute top-4 right-4 z-[110] w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 backdrop-blur-md text-white hover:bg-white/20 hover:scale-110 transition-all duration-200 hover:rotate-90 group shadow-lg"
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
             aria-label="Close modal"
           >
-            <X className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            <X className="w-4 h-4" />
           </button>
         )}
         
-        {/* Auth view component */}
-        <AuthView
-          mode={isSignUp ? 'signup' : 'signin'}
-          email={email}
-          password={password}
-          name={name}
-          error={error}
-          loading={loading}
-          onEmailChange={setEmail}
-          onPasswordChange={setPassword}
-          onNameChange={setName}
-          onSubmit={handleSubmit}
-          onToggleMode={handleToggleMode}
-        />
+        {/* Disabled auth message */}
+        <div className="mt-4">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            🔒
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Authentication Disabled</h2>
+          <p className="text-gray-600 mb-6">
+            The authentication system is currently being updated. Please check back later.
+          </p>
+          <button
+            onClick={handleClose}
+            className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200"
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );
 
-  // Render modal at document body level using portal
   return createPortal(modalContent, document.body);
 }
+
+/*
+// ORIGINAL AUTH MODAL CODE COMMENTED OUT
+// Restore when implementing new auth system
+*/

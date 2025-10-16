@@ -154,6 +154,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
   );
 };
 
+// eslint-disable-next-line max-lines-per-function
 export default function CompanyPageClient() {
   const params = useParams();
   const router = useRouter();

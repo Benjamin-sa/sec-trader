@@ -38,6 +38,7 @@ export interface TransactionBadgeProps {
   transactionCode: string;
   acquiredDisposedCode: string;
   transactionDescription?: string | null;
+  is10b51Plan?: boolean | number;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   showIcon?: boolean;
   showDescription?: boolean;
@@ -57,8 +58,12 @@ interface TransactionCategory {
  */
 export function getTransactionCategory(
   transactionCode: string,
-  acquiredDisposedCode: string
+  acquiredDisposedCode: string,
+  is10b51Plan?: boolean | number
 ): TransactionCategory {
+  // Convert number to boolean for 10b5-1 plan check
+  const is10b51 = Boolean(is10b51Plan);
+
   // Open Market Purchases - HIGH importance
   if (transactionCode === 'P' && acquiredDisposedCode === 'A') {
     return {
@@ -70,8 +75,17 @@ export function getTransactionCategory(
     };
   }
 
-  // Open Market Sales - HIGH importance (negative signal)
+  // Open Market Sales - Importance depends on 10b5-1 plan
   if (transactionCode === 'S' && acquiredDisposedCode === 'D') {
+    if (is10b51) {
+      return {
+        label: 'Planned Sale',
+        icon: '🤖',
+        colorClass: 'bg-gradient-to-r from-orange-100 to-orange-50 text-orange-800 border-orange-200/60',
+        importance: 'low',
+        description: '10b5-1 planned sale - pre-scheduled, less signal value'
+      };
+    }
     return {
       label: 'Sell',
       icon: '📉',
@@ -186,12 +200,13 @@ export default function TransactionBadge({
   transactionCode,
   acquiredDisposedCode,
   transactionDescription,
+  is10b51Plan,
   size = 'sm',
   showIcon = true,
   showDescription = false,
   showInfoModal = true
 }: TransactionBadgeProps) {
-  const category = getTransactionCategory(transactionCode, acquiredDisposedCode);
+  const category = getTransactionCategory(transactionCode, acquiredDisposedCode, is10b51Plan);
 
   const sizeClasses = {
     xs: 'px-1.5 py-0.5 text-[10px]',
@@ -229,6 +244,7 @@ export default function TransactionBadge({
       <TransactionInfoModal
         transactionCode={transactionCode}
         acquiredDisposedCode={acquiredDisposedCode}
+        is10b51Plan={is10b51Plan}
       >
         {badgeContent}
       </TransactionInfoModal>
@@ -243,11 +259,17 @@ export default function TransactionBadge({
  */
 export function isSignificantTransaction(
   transactionCode: string,
-  acquiredDisposedCode: string
+  acquiredDisposedCode: string,
+  is10b51Plan?: boolean | number
 ): boolean {
   // Only open market purchases (P+A) and sales (S+D) are highly significant
   const isPurchase = transactionCode === 'P' && acquiredDisposedCode === 'A';
   const isSale = transactionCode === 'S' && acquiredDisposedCode === 'D';
+  
+  // 10b5-1 planned sales are less significant
+  if (isSale && Boolean(is10b51Plan)) {
+    return false;
+  }
   
   return isPurchase || isSale;
 }
@@ -257,9 +279,10 @@ export function isSignificantTransaction(
  */
 export function getSimpleTransactionLabel(
   transactionCode: string,
-  acquiredDisposedCode: string
+  acquiredDisposedCode: string,
+  is10b51Plan?: boolean | number
 ): string {
-  const category = getTransactionCategory(transactionCode, acquiredDisposedCode);
+  const category = getTransactionCategory(transactionCode, acquiredDisposedCode, is10b51Plan);
   return category.label;
 }
 
@@ -268,9 +291,10 @@ export function getSimpleTransactionLabel(
  */
 export function getTransactionColorClass(
   transactionCode: string,
-  acquiredDisposedCode: string
+  acquiredDisposedCode: string,
+  is10b51Plan?: boolean | number
 ): string {
-  const category = getTransactionCategory(transactionCode, acquiredDisposedCode);
+  const category = getTransactionCategory(transactionCode, acquiredDisposedCode, is10b51Plan);
   return category.colorClass;
 }
 
@@ -279,8 +303,9 @@ export function getTransactionColorClass(
  */
 export function getTransactionIcon(
   transactionCode: string,
-  acquiredDisposedCode: string
+  acquiredDisposedCode: string,
+  is10b51Plan?: boolean | number
 ): string {
-  const category = getTransactionCategory(transactionCode, acquiredDisposedCode);
+  const category = getTransactionCategory(transactionCode, acquiredDisposedCode, is10b51Plan);
   return category.icon;
 }

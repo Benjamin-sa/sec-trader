@@ -1,17 +1,18 @@
 -- #############################################################################
--- # USER NOTIFICATIONS & ALERT PREFERENCES MIGRATION
--- # Adds tables for managing user notification preferences and tracking sent alerts
+-- # USER NOTIFICATIONS & ALERT PREFERENCES MIGRATION - DISABLED
+-- # These tables have been removed to disable authentication system
+-- # Uncomment when ready to implement new auth system
 -- # Run date: 2025-10-14
 -- #############################################################################
 
--- -----------------------------------------------------------------------------
--- USER ALERT PREFERENCES
--- -----------------------------------------------------------------------------
+-- AUTH-DEPENDENT TABLES COMMENTED OUT
+-- Remove the comment blocks below when implementing new auth system
 
--- User notification preferences
-CREATE TABLE IF NOT EXISTS user_alert_preferences (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id TEXT NOT NULL,  -- References user.id from better-auth
+/*
+-- All user notification and alert preference tables have been commented out
+-- since they depend on the user authentication system that has been removed.
+-- Restore these tables when implementing the new auth system.
+*/
   
   -- Global notification settings
   notifications_enabled BOOLEAN DEFAULT TRUE,

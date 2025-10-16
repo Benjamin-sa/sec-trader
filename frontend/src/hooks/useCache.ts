@@ -4,7 +4,7 @@
  * Provides easy-to-use cache utilities in React components.
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { cache, type CacheStats } from '@/lib/cache';
 import { clearAllCaches, getCacheStats, prefetchCommonData } from '@/lib/cached-api-client';
 
@@ -85,7 +85,7 @@ export function useClearCacheOnUnmount(namespace?: string) {
  * Hook to monitor cache performance
  */
 export function useCacheStats(intervalMs: number = 5000) {
-  const [stats, setStats] = React.useState<CacheStats | null>(null);
+  const [stats, setStats] = useState<CacheStats | null>(null);
 
   useEffect(() => {
     const updateStats = () => {
@@ -100,6 +100,3 @@ export function useCacheStats(intervalMs: number = 5000) {
 
   return stats;
 }
-
-// Import React for useCacheStats
-import React from 'react';

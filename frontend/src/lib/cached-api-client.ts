@@ -10,8 +10,7 @@
  * - Stale-while-revalidate for better UX
  */
 
-import { apiClient, alpacaClient } from './api-client';
-import type { TradeData, ClusterBuy, ApiFilters, NewsResponse } from './api-client';
+import { apiClient, alpacaClient, type TradeData, type ClusterBuy, type ApiFilters, type NewsResponse, type FilingResponse, type PaginatedResponse } from './api-client';
 import { cache, createCacheKey, type CacheOptions } from './cache';
 
 // ============================================================================
@@ -49,6 +48,14 @@ const CACHE_CONFIG = {
     staleWhileRevalidate: true,
     persistent: true,
     tags: ['trades', 'insider'] as string[],
+  },
+  
+  // Filing data - moderate freshness required since it's historical
+  filing: {
+    ttl: 10 * 60 * 1000, // 10 minutes (filings don't change once filed)
+    staleWhileRevalidate: true,
+    persistent: true,
+    tags: ['filing'] as string[],
   },
   
   // Market data - needs to be fresher
@@ -98,6 +105,23 @@ export class CachedRestApiClient {
     return cache.get(
       cacheKey,
       () => apiClient.getLatestTrades(limit, filters),
+      { ...CACHE_CONFIG.trades, ...options, namespace: 'api' }
+    );
+  }
+
+  /**
+   * Get latest trades with pagination and caching
+   */
+  async getLatestTradesWithPagination(
+    limit: number = 25, 
+    filters?: ApiFilters,
+    options?: Partial<CacheOptions>
+  ): Promise<PaginatedResponse<TradeData[]>> {
+    const cacheKey = createCacheKey('trades-latest-paginated', { limit, ...filters });
+    
+    return cache.get(
+      cacheKey,
+      () => apiClient.getLatestTradesWithPagination(limit, filters),
       { ...CACHE_CONFIG.trades, ...options, namespace: 'api' }
     );
   }
@@ -174,6 +198,22 @@ export class CachedRestApiClient {
   }
 
   /**
+   * Get filing data by accession number with caching
+   */
+  async getFilingByAccessionNumber(
+    accessionNumber: string,
+    options?: Partial<CacheOptions>
+  ): Promise<FilingResponse> {
+    const cacheKey = createCacheKey('filing', { accessionNumber });
+    
+    return cache.get(
+      cacheKey,
+      () => apiClient.getFilingByAccessionNumber(accessionNumber),
+      { ...CACHE_CONFIG.filing, ...options, namespace: 'api' }
+    );
+  }
+
+  /**
    * Invalidate all trade-related caches
    */
   async invalidateTrades(): Promise<void> {
@@ -192,6 +232,13 @@ export class CachedRestApiClient {
    */
   async invalidateInsider(cik: string): Promise<void> {
     await cache.invalidatePattern(`trades-insider.*${cik}.*`, 'api');
+  }
+
+  /**
+   * Invalidate filing-specific cache
+   */
+  async invalidateFiling(accessionNumber: string): Promise<void> {
+    await cache.invalidatePattern(`filing.*${accessionNumber}.*`, 'api');
   }
 }
 

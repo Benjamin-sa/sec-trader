@@ -53,6 +53,7 @@ export interface Trade {
   is_director?: boolean | null;
   is_officer?: boolean | null;
   is_ten_percent_owner?: boolean | null;
+  is_10b5_1_plan?: boolean | number | null;
   ownership_nature?: string | null;
 }
 
@@ -386,6 +387,7 @@ const TradeCard: React.FC<{
                 transactionCode={trade.transaction_code}
                 acquiredDisposedCode={trade.acquired_disposed_code}
                 transactionDescription={trade.transaction_description}
+                is10b51Plan={trade.is_10b5_1_plan || undefined}
                 size="md"
                 showIcon={true}
               />
@@ -520,6 +522,7 @@ const TradesTable: React.FC<{
                         transactionCode={trade.transaction_code}
                         acquiredDisposedCode={trade.acquired_disposed_code}
                         transactionDescription={trade.transaction_description}
+                        is10b51Plan={trade.is_10b5_1_plan || undefined}
                         size="sm"
                         showIcon={true}
                       />

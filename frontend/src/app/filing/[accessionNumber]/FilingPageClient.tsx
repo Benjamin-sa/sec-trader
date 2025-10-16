@@ -7,6 +7,7 @@ import { useInView } from 'react-intersection-observer';
 import CountUp from 'react-countup';
 import { TradeData } from '@/lib/database';
 import { cachedApiClient } from '@/lib/cached-api-client';
+import type { FilingData } from '@/lib/api-client';
 import { 
   ArrowLeftIcon, 
   ArrowTopRightOnSquareIcon
@@ -14,7 +15,6 @@ import {
 import {
   FileText,
   TrendingUp,
-  TrendingDown,
   DollarSign,
   Calendar,
   Building,
@@ -42,7 +42,7 @@ interface StatsCardProps {
 const StatsCard: React.FC<StatsCardProps> = ({
   label,
   value,
-  icon: Icon,
+  icon: iconComponent,
   color,
   delay,
   isNumber = true,
@@ -87,6 +87,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
   };
 
   const colors = colorClasses[color];
+  const IconComponent = iconComponent;
 
   return (
     <motion.div
@@ -130,39 +131,98 @@ const StatsCard: React.FC<StatsCardProps> = ({
           flex items-center justify-center 
           shadow-sm
         `}>
-          <Icon className={`w-6 h-6 ${colors.icon}`} />
+          <IconComponent className={`w-6 h-6 ${colors.icon}`} />
         </div>
       </div>
     </motion.div>
   );
 };
 
+// eslint-disable-next-line max-lines-per-function
 export default function FilingPageClient() {
   const params = useParams();
   const router = useRouter();
   const accessionNumber = params.accessionNumber as string;
   const [trades, setTrades] = useState<TradeData[]>([]);
+  const [filing, setFiling] = useState<FilingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchFilingData = async () => {
-      if (!accessionNumber) return;
+      // Add defensive check for accession number
+      if (!accessionNumber || typeof accessionNumber !== 'string') {
+        setError('Invalid filing accession number');
+        setLoading(false);
+        return;
+      }
       
       try {
         setLoading(true);
+        setError(null);
         
-        // Fetch all trades with this accession number
-        const allTrades = await cachedApiClient.getLatestTrades(1000);
-        const filingTrades = allTrades.filter(
-          (trade: TradeData) => trade.accession_number === accessionNumber
-        );
+        // First, check if we have cached data from the TradesList navigation
+        const cachedDataKey = `filing-${accessionNumber}`;
+        const cachedDataStr = sessionStorage.getItem(cachedDataKey);
         
-        setTrades(filingTrades);
+        if (cachedDataStr) {
+          try {
+            const cachedData = JSON.parse(cachedDataStr);
+            const cacheAge = Date.now() - cachedData.cachedAt;
+            
+            // Use cached data if it's less than 2 minutes old and has trades
+            if (cacheAge < 2 * 60 * 1000 && cachedData.trades?.length > 0) {
+              console.info('Using cached filing data from navigation');
+              
+              // Set the data immediately from cache
+              setTrades(cachedData.trades);
+              setLoading(false);
+              
+              // Clean up the session storage immediately
+              sessionStorage.removeItem(cachedDataKey);
+              
+              // Fetch full filing data in the background for metadata
+              fetchBackgroundFilingData(accessionNumber);
+              
+              return; // Exit early, we have the data
+            } else {
+              console.info('Cached data is stale or incomplete, fetching fresh data');
+              // Clean up stale cache
+              sessionStorage.removeItem(cachedDataKey);
+            }
+          } catch (parseError) {
+            console.warn('Failed to parse cached filing data:', parseError);
+            // Clean up corrupt cache
+            sessionStorage.removeItem(cachedDataKey);
+          }
+        }
+        
+        // Fallback to normal API fetch if no cache or cache is stale
+        console.info('Fetching filing data from API');
+        const filingData = await cachedApiClient.getFilingByAccessionNumber(accessionNumber);
+        
+        setFiling(filingData.filing);
+        setTrades(filingData.trades);
       } catch (err) {
+        console.error('Failed to fetch filing data:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch filing data');
       } finally {
         setLoading(false);
+      }
+    };
+
+    const fetchBackgroundFilingData = async (accessionNumber: string) => {
+      try {
+        const filingData = await cachedApiClient.getFilingByAccessionNumber(accessionNumber);
+        setFiling(filingData.filing);
+        
+        // Update trades if the API has more complete data
+        if (filingData.trades?.length > 0) {
+          setTrades(filingData.trades);
+        }
+      } catch (backgroundError) {
+        console.warn('Background filing fetch failed:', backgroundError);
+        // Don't show error since we already have the essential data
       }
     };
 
@@ -265,8 +325,10 @@ export default function FilingPageClient() {
   }
 
   const primaryTrade = trades[0];
-  const totalValue = trades.reduce((sum, t) => sum + (t.transaction_value || 0), 0);
-  const totalShares = trades.reduce((sum, t) => sum + (t.shares_transacted || 0), 0);
+  // Use filing metadata if available, otherwise calculate from trades
+  const totalValue = filing ? filing.total_value : trades.reduce((sum, t) => sum + (t.transaction_value || 0), 0);
+  const totalShares = filing ? filing.total_shares : trades.reduce((sum, t) => sum + (t.shares_transacted || 0), 0);
+  const transactionCount = filing ? filing.transaction_count : trades.length;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -409,7 +471,7 @@ export default function FilingPageClient() {
           >
             <StatsCard
               label="Total Transactions"
-              value={trades.length}
+              value={transactionCount}
               icon={FileText}
               color="blue"
               delay={0}
@@ -671,6 +733,7 @@ export default function FilingPageClient() {
                             transactionCode={trade.transaction_code}
                             acquiredDisposedCode={trade.acquired_disposed_code}
                             transactionDescription={trade.transaction_description}
+                            is10b51Plan={trade.is_10b5_1_plan}
                             size="md"
                             showIcon={true}
                           />

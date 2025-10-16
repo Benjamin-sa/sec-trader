@@ -9,6 +9,7 @@ export const API_ROUTES = {
   TRADES_CLUSTERS: "/api/trades/clusters",
   TRADES_BY_COMPANY: "/api/trades/company",
   TRADES_BY_INSIDER: "/api/trades/insider",
+  FILING_BY_ACCESSION: "/api/filing", // Base path, accession number will be appended
   INSIDER_BACKFILL: "/api/insider/backfill",
   HEALTH: "/api/health",
 };

@@ -42,6 +42,7 @@ export function createHealthResponse(env) {
         "/api/trades/clusters",
         "/api/trades/company",
         "/api/trades/insider",
+        "/api/filing/{accessionNumber}",
         "/api/health",
       ],
     },

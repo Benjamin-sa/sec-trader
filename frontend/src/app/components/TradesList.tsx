@@ -1,15 +1,97 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { TradeData } from '../../lib/database';
+import { PaginationMetadata } from '../../lib/api-client';
 import { cachedApiClient } from '../../lib/cached-api-client';
 import { useCurrencyFormatter, useNumberFormatter } from '@/hooks/useTranslation';
 import { Calendar, Search, ExternalLink } from 'lucide-react';
 import { ClickableCompany, ClickableInsider } from './ClickableLinks';
 import FilingLink from './FilingLink';
 import TransactionBadge from '@/components/TransactionBadge';
+import { Pagination } from '@/components/Pagination';
 import { useRouter } from 'next/navigation';
+
+
+// Helper functions
+const formatCurrency = (value: number | null, currencyFormatter: Intl.NumberFormat, t: (key: string) => string) => {
+  if (!value) return t('common.noData');
+
+  // For very large values, use compact notation
+  if (Math.abs(value) >= 1000000) {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      notation: 'compact',
+      compactDisplay: 'short',
+      maximumFractionDigits: 1,
+    }).format(value);
+  }
+  
+  // For smaller values, round to nearest dollar
+  return currencyFormatter.format(Math.round(value));
+};
+
+const formatPrice = (value: number | null, t: (key: string) => string) => {
+  if (!value) return t('common.noData');
+  
+  // For stock prices, show 2 decimal places but round appropriately
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+};
+
+const formatNumber = (value: number | null, numberFormatter: Intl.NumberFormat, t: (key: string) => string) => {
+  if (!value) return t('common.noData');
+  
+  // For very large numbers, use compact notation
+  if (Math.abs(value) >= 1000000) {
+    return new Intl.NumberFormat('en-US', {
+      notation: 'compact',
+      compactDisplay: 'short',
+      maximumFractionDigits: 1,
+    }).format(value);
+  }
+  
+  // For shares, round to whole numbers
+  return numberFormatter.format(Math.round(value));
+};
+
+const formatDate = (dateString: string) => {
+  const locale = typeof window !== 'undefined' ? localStorage.getItem('preferred-locale') || 'en' : 'en';
+  return new Date(dateString).toLocaleDateString(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
+// Storage key for persisting state
+const TRADESLIST_STATE_KEY = 'tradeslist-state';
+
+// Interface for persisted state
+interface PersistedState {
+  pagination: PaginationMetadata;
+  filters: {
+    q: string;
+    type: '' | 'P' | 'S' | 'A';
+    acquired: '' | 'A' | 'D';
+    ownership: '' | 'D' | 'I';
+    isDirector: boolean;
+    isOfficer: boolean;
+    isTen: boolean;
+    symbol: string;
+    minValue: string;
+    minShares: string;
+    dateFrom: string;
+    dateTo: string;
+  };
+  timestamp: number;
+}
 
 export function TradesList() {
   const t = useTranslations();
@@ -18,8 +100,29 @@ export function TradesList() {
   const numberFormatter = useNumberFormatter();
   
   const [trades, setTrades] = useState<TradeData[]>([]);
+  const [pagination, setPagination] = useState<PaginationMetadata>({
+    page: 1,
+    limit: 25,
+    offset: 0,
+    total_count: 0,
+    total_pages: 1,
+    has_next_page: false,
+    has_prev_page: false,
+    next_page: null,
+    prev_page: null,
+  });
+  const [queryInfo, setQueryInfo] = useState<{
+    filters_applied: number;
+    count_source?: string;
+  }>({
+    filters_applied: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [hasRestoredState, setHasRestoredState] = useState(false);
+  
+  // Filter states
   const [q, setQ] = useState('');
   const [type, setType] = useState<'' | 'P' | 'S' | 'A'>('');
   const [acquired, setAcquired] = useState<'' | 'A' | 'D'>('');
@@ -33,10 +136,183 @@ export function TradesList() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
+  // Save current state to sessionStorage
+  const saveStateToStorage = useCallback(() => {
+    try {
+      const currentState: PersistedState = {
+        pagination,
+        filters: {
+          q,
+          type,
+          acquired,
+          ownership,
+          isDirector,
+          isOfficer,
+          isTen,
+          symbol,
+          minValue,
+          minShares,
+          dateFrom,
+          dateTo,
+        },
+        timestamp: Date.now(),
+      };
+      
+      sessionStorage.setItem(TRADESLIST_STATE_KEY, JSON.stringify(currentState));
+    } catch (error) {
+      console.warn('Failed to save TradesList state:', error);
+    }
+  }, [pagination, q, type, acquired, ownership, isDirector, isOfficer, isTen, symbol, minValue, minShares, dateFrom, dateTo]);
+
+  // Restore state from sessionStorage
+  const restoreStateFromStorage = () => {
+    try {
+      const savedStateStr = sessionStorage.getItem(TRADESLIST_STATE_KEY);
+      if (!savedStateStr) return false;
+
+      const savedState: PersistedState = JSON.parse(savedStateStr);
+      
+      // Check if state is not too old (max 30 minutes)
+      const stateAge = Date.now() - savedState.timestamp;
+      const maxAge = 30 * 60 * 1000; // 30 minutes
+      
+      if (stateAge > maxAge) {
+        console.info('Saved TradesList state is too old, ignoring');
+        sessionStorage.removeItem(TRADESLIST_STATE_KEY);
+        return false;
+      }
+
+      // Restore filters
+      setQ(savedState.filters.q);
+      setType(savedState.filters.type);
+      setAcquired(savedState.filters.acquired);
+      setOwnership(savedState.filters.ownership);
+      setIsDirector(savedState.filters.isDirector);
+      setIsOfficer(savedState.filters.isOfficer);
+      setIsTen(savedState.filters.isTen);
+      setSymbol(savedState.filters.symbol);
+      setMinValue(savedState.filters.minValue);
+      setMinShares(savedState.filters.minShares);
+      setDateFrom(savedState.filters.dateFrom);
+      setDateTo(savedState.filters.dateTo);
+
+      // Restore pagination (but keep the limit from initial state)
+      setPagination(prev => ({
+        ...savedState.pagination,
+        limit: prev.limit, // Keep current limit
+      }));
+
+      console.info('Restored TradesList state from navigation');
+      return true;
+    } catch (error) {
+      console.warn('Failed to restore TradesList state:', error);
+      sessionStorage.removeItem(TRADESLIST_STATE_KEY);
+      return false;
+    }
+  };
+
+  // Effect to restore state on mount
+  useEffect(() => {
+    const wasRestored = restoreStateFromStorage();
+    setHasRestoredState(true);
+    
+    // If we didn't restore state, fetch with default pagination
+    if (!wasRestored) {
+      fetchTrades();
+    }
+    // If we did restore state, fetchTrades will be called by the dependency useEffect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleTradeClick = async (accessionNumber: string) => {
+    // Prevent multiple simultaneous navigations
+    if (isNavigating) return;
+    
+    try {
+      setIsNavigating(true);
+      
+      // Save current state before navigating
+      saveStateToStorage();
+      
+      // Find the trade data we already have for this filing
+      const relevantTrades = trades.filter(trade => trade.accession_number === accessionNumber);
+      
+      if (relevantTrades.length > 0) {
+        // We have the data! Store it and navigate
+        // Use a more reliable key format and ensure immediate availability
+        const cacheData = {
+          trades: relevantTrades,
+          cachedAt: Date.now()
+        };
+        
+        // Store in sessionStorage synchronously
+        sessionStorage.setItem(`filing-${accessionNumber}`, JSON.stringify(cacheData));
+        
+        // Small delay to ensure storage operation completes
+        await new Promise(resolve => setTimeout(resolve, 10));
+        
+        // Navigate immediately
+        router.push(`/filing/${accessionNumber}`);
+        
+      } else {
+        // Fallback: we don't have the data, so fetch it first
+        console.info('Trade data not found in current list, fetching from API...');
+        await cachedApiClient.getFilingByAccessionNumber(accessionNumber);
+        router.push(`/filing/${accessionNumber}`);
+      }
+      
+    } catch (error) {
+      console.error('Navigation failed:', error);
+      setIsNavigating(false);
+    }
+    // Note: We don't reset isNavigating here - let the route change handle it
+  };
+
+  // Create a dependency array that includes all filter states
+  // This ensures fetchTrades is called whenever filters or pagination changes
   useEffect(() => {
     fetchTrades();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [
+    pagination.page,
+    q,
+    type,
+    acquired,
+    ownership,
+    isDirector,
+    isOfficer,
+    isTen,
+    symbol,
+    minValue,
+    minShares,
+    dateFrom,
+    dateTo
+  ]);
+
+  // Reset navigation state when component unmounts
+  useEffect(() => {
+    // Listen for beforeunload to reset state when user navigates away
+    const handleBeforeUnload = () => {
+      setIsNavigating(false);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      setIsNavigating(false);
+      
+      // Save state when component unmounts (but only if we restored state initially)
+      if (hasRestoredState) {
+        saveStateToStorage();
+      }
+      
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [hasRestoredState, saveStateToStorage]);
+
+  const handlePageChange = (newPage: number) => {
+    setPagination(prev => ({ ...prev, page: newPage }));
+  };
 
   const fetchTrades = async () => {
     try {
@@ -55,18 +331,17 @@ export function TradesList() {
         min_shares: minShares ? Number(minShares) : undefined,
         start_date: dateFrom || undefined,
         end_date: dateTo || undefined,
+        page: pagination.page,
       };
       
-      console.log('Frontend filter state:', {
-        q, type, acquired, ownership, isDirector, isOfficer, isTen, 
-        symbol, minValue, minShares, dateFrom, dateTo
-      });
-      console.log('Calling API with filters:', filterParams);
+      const response = await cachedApiClient.getLatestTradesWithPagination(pagination.limit, filterParams);
       
-      const data = await cachedApiClient.getLatestTrades(25, filterParams);
-      console.log('API returned trades:', data.length);
+      console.info('API Response:', response);
+      console.info('Pagination data:', response.pagination);
       
-      setTrades(data);
+      setTrades(response.data);
+      setPagination(response.pagination);
+      setQueryInfo(response.query_info || { filters_applied: 0 });
       setError(null);
     } catch (err) {
       console.error('fetchTrades error:', err);
@@ -76,23 +351,29 @@ export function TradesList() {
     }
   };
 
-  const formatCurrency = (value: number | null) => {
-    if (!value) return t('common.noData');
-    return currencyFormatter.format(value);
-  };
-
-  const formatNumber = (value: number | null) => {
-    if (!value) return t('common.noData');
-    return numberFormatter.format(value);
-  };
-
-  const formatDate = (dateString: string) => {
-    const locale = typeof window !== 'undefined' ? localStorage.getItem('preferred-locale') || 'en' : 'en';
-    return new Date(dateString).toLocaleDateString(locale, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+  const resetFiltersAndFetch = () => {
+    setQ('');
+    setType('');
+    setAcquired('');
+    setOwnership('');
+    setIsDirector(false);
+    setIsOfficer(false);
+    setIsTen(false);
+    setSymbol('');
+    setMinValue('');
+    setMinShares('');
+    setDateFrom('');
+    setDateTo('');
+    
+    // Clear saved state when explicitly resetting
+    try {
+      sessionStorage.removeItem(TRADESLIST_STATE_KEY);
+    } catch (error) {
+      console.warn('Failed to clear saved state:', error);
+    }
+    
+    // Reset pagination to page 1 - this will trigger fetchTrades via useEffect
+    setPagination(prev => ({ ...prev, page: 1 }));
   };
 
   if (loading) {
@@ -210,9 +491,17 @@ export function TradesList() {
             <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full border border-gray-300 rounded-md py-2 px-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
           </div>
           <div className="col-span-2 md:col-span-1 flex gap-2">
-            <button onClick={fetchTrades} className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-blue-500">{t('tradesPage.applyButton')}</button>
+            <button 
+              onClick={() => {
+                // Reset pagination to page 1 - this will trigger fetchTrades via useEffect
+                setPagination(prev => ({ ...prev, page: 1 }));
+              }} 
+              className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 focus-visible:ring-2 focus-visible:ring-blue-500"
+            >
+              {t('tradesPage.applyButton')}
+            </button>
             <button
-              onClick={() => { setQ(''); setType(''); setAcquired(''); setOwnership(''); setIsDirector(false); setIsOfficer(false); setIsTen(false); setSymbol(''); setMinValue(''); setMinShares(''); setDateFrom(''); setDateTo(''); fetchTrades(); }}
+              onClick={resetFiltersAndFetch}
               className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white text-gray-700 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-blue-500"
             >
               {t('tradesPage.resetButton')}
@@ -242,8 +531,12 @@ export function TradesList() {
           {trades.map((trade, index) => (
             <div 
               key={trade.transaction_id ? `tx-${trade.transaction_id}` : `trade-${index}-${trade.accession_number}-${trade.person_cik || 'unknown'}`} 
-              onClick={() => router.push(`/filing/${trade.accession_number}`)}
-              className="relative border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group"
+              onClick={() => handleTradeClick(trade.accession_number)}
+              className={`
+                relative border border-gray-200 rounded-lg p-3 sm:p-4 
+                hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group
+                ${isNavigating ? 'opacity-75 pointer-events-none' : ''}
+              `}
             >
               {/* Mobile: Badges at top, Desktop: Badges on right */}
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
@@ -251,7 +544,11 @@ export function TradesList() {
                 <div className="flex flex-wrap items-center gap-2 sm:order-2 sm:flex-col sm:items-end sm:flex-shrink-0 relative">
                   {/* Visual indicator that card is clickable */}
                   <div className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <ExternalLink className="h-4 w-4 text-blue-500" />
+                    {isNavigating ? (
+                      <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+                    ) : (
+                      <ExternalLink className="h-4 w-4 text-blue-500" />
+                    )}
                   </div>
                   
                   <div onClick={(e) => e.stopPropagation()}>
@@ -259,18 +556,19 @@ export function TradesList() {
                       transactionCode={trade.transaction_code}
                       acquiredDisposedCode={trade.acquired_disposed_code}
                       transactionDescription={trade.transaction_description}
+                      is10b51Plan={trade.is_10b5_1_plan}
                       size="sm"
                       showIcon={true}
                     />
                   </div>
-                  {(trade.is_director || trade.is_officer) && (
+                  {(!!trade.is_director || !!trade.is_officer) && (
                     <>
-                      {trade.is_director && (
+                      {!!trade.is_director && (
                         <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded whitespace-nowrap">
                           {t('tradesPage.director')}
                         </span>
                       )}
-                      {trade.is_officer && (
+                      {!!trade.is_officer && (
                         <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded whitespace-nowrap">
                           {t('tradesPage.officer')}
                         </span>
@@ -312,26 +610,26 @@ export function TradesList() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 p-2.5 sm:p-3 bg-gray-50 rounded-md">
                 <div className="min-w-0">
                   <div className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">{t('trades.shares')}</div>
-                  <div className="text-sm font-medium text-gray-900 truncate" title={formatNumber(trade.shares_transacted)}>
-                    {formatNumber(trade.shares_transacted)}
+                  <div className="text-sm font-medium text-gray-900 truncate" title={formatNumber(trade.shares_transacted, numberFormatter, t)}>
+                    {formatNumber(trade.shares_transacted, numberFormatter, t)}
                   </div>
                 </div>
                 <div className="min-w-0">
                   <div className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">{t('trades.price')}</div>
-                  <div className="text-sm font-medium text-gray-900 truncate" title={formatCurrency(trade.price_per_share)}>
-                    {formatCurrency(trade.price_per_share)}
+                  <div className="text-sm font-medium text-gray-900 truncate" title={formatPrice(trade.price_per_share, t)}>
+                    {formatPrice(trade.price_per_share, t)}
                   </div>
                 </div>
                 <div className="min-w-0">
                   <div className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">{t('trades.value')}</div>
-                  <div className="text-sm font-medium text-gray-900 truncate" title={formatCurrency(trade.transaction_value)}>
-                    {formatCurrency(trade.transaction_value)}
+                  <div className="text-sm font-medium text-gray-900 truncate" title={formatCurrency(trade.transaction_value, currencyFormatter, t)}>
+                    {formatCurrency(trade.transaction_value, currencyFormatter, t)}
                   </div>
                 </div>
                 <div className="min-w-0">
                   <div className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">{t('tradesPage.ownedAfter')}</div>
-                  <div className="text-sm font-medium text-gray-900 truncate" title={formatNumber(trade.shares_owned_following)}>
-                    {formatNumber(trade.shares_owned_following)}
+                  <div className="text-sm font-medium text-gray-900 truncate" title={formatNumber(trade.shares_owned_following, numberFormatter, t)}>
+                    {formatNumber(trade.shares_owned_following, numberFormatter, t)}
                   </div>
                 </div>
               </div>
@@ -339,6 +637,24 @@ export function TradesList() {
           ))}
         </div>
       )}
+      
+      {/* Pagination */}
+      <div className="mt-6">
+        <div className="text-xs text-gray-500 mb-2">
+          Debug: Page {pagination.page} of {pagination.total_pages} (Total: {pagination.total_count})
+          {queryInfo.count_source && (
+            <span className="ml-2 text-blue-600">• Count source: {queryInfo.count_source}</span>
+          )}
+        </div>
+        <Pagination
+          currentPage={pagination.page}
+          totalPages={pagination.total_pages}
+          onPageChange={handlePageChange}
+          hasNextPage={pagination.has_next_page}
+          hasPrevPage={pagination.has_prev_page}
+          className="border-t border-gray-200 pt-6"
+        />
+      </div>
     </div>
   );
 }

@@ -41,6 +41,28 @@ export function validateLimit(limit, defaultLimit, maxLimit = 100) {
   return Math.min(parsedLimit, maxLimit);
 }
 
+export function validatePage(page, defaultPage = 1) {
+  const parsedPage = parseInt(page);
+  if (isNaN(parsedPage) || parsedPage < 1) {
+    return defaultPage;
+  }
+  return parsedPage;
+}
+
+export function validateOffset(offset, defaultOffset = 0) {
+  const parsedOffset = parseInt(offset);
+  if (isNaN(parsedOffset) || parsedOffset < 0) {
+    return defaultOffset;
+  }
+  return parsedOffset;
+}
+
+export function calculatePagination(page, limit) {
+  const currentPage = Math.max(1, page);
+  const offset = (currentPage - 1) * limit;
+  return { page: currentPage, offset, limit };
+}
+
 export function sanitizeString(str) {
   return str ? str.trim() : "";
 }
@@ -63,4 +85,10 @@ export function standardizeCik(cik) {
 
   // Validate the standardized CIK
   return validateCik(standardized) ? standardized : null;
+}
+
+export function validateAccessionNumber(accessionNumber) {
+  // SEC accession number format: 0000000000-00-000000 (10 digits, dash, 2 digits, dash, 6 digits)
+  const accessionRegex = /^\d{10}-\d{2}-\d{6}$/;
+  return accessionNumber && accessionRegex.test(accessionNumber);
 }
