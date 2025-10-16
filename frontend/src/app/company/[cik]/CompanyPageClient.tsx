@@ -679,6 +679,8 @@ export default function CompanyPageClient() {
                   context="company"
                   emptyMessage="No insider trades found for this company."
                   onTradeClick={(accessionNumber) => router.push(`/filing/${accessionNumber}`)}
+                  enablePagination={true}
+                  itemsPerPage={10}
                 />
               </div>
               <div className="hidden md:block">
@@ -689,6 +691,8 @@ export default function CompanyPageClient() {
                   context="company"
                   emptyMessage="No insider trades found for this company."
                   onTradeClick={(accessionNumber) => router.push(`/filing/${accessionNumber}`)}
+                  enablePagination={true}
+                  itemsPerPage={25}
                 />
               </div>
             </div>
