@@ -13,6 +13,12 @@ binding = "DB"
 database_name = "sec_filings"
 database_id = "becbe21b-9435-4df7-80da-3df9ed7f1b96"
 
+[observability]
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+
 # Environment variables
 [vars]
 ENVIRONMENT = "production"
